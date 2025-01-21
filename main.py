@@ -159,36 +159,43 @@ screen_rect = (0, 0, width, height)
 
 
 class Particle(pygame.sprite.Sprite):
-    # сгенерируем частицы разного размера
-    part = pygame.Surface([2, 2])
+    # Сгенерируем частицы разного размера
+    part = pygame.Surface([3, 3])
     part.fill('red')
     fire = [part]
-    for scale in (5, 5, 5):
+    for scale in (3, 3):  # Увеличил размеры, чтобы было заметнее уменьшение
         fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
     def __init__(self, pos, dx, dy):
-        super().__init__(all_sprites)
-        self.image = random.choice(self.fire)
-        self.rect = self.image.get_rect()
+        super().__init__(all_sprites)  # Перенёс вызов all_sprites в __init__
+        self.original_images = self.fire  # Сохраняем оригинальные изображения
+        self.image = random.choice(self.original_images)
+        self.rect = self.image.get_rect(center=pos)  # Задаём позицию по центру
 
         # у каждой частицы своя скорость — это вектор
         self.velocity = [dx, dy]
-        # и свои координаты
-        self.rect.x, self.rect.y = pos
 
-        # гравитация будет одинаковой (значение константы)
-        # self.gravity = GRAVITY
+        self.distance_blood = 0
+        self.life_time = 150
+        self.current_life = self.life_time
 
     def update(self, *keys):
-        # применяем гравитационный эффект:
-        # движение с ускорением под действием гравитации
-        # self.velocity[1] += 1
         # перемещаем частицу
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
-        # убиваем, если частица ушла за экран
-        if not self.rect.colliderect(screen_rect):
-            print(1)
+        self.distance_blood += abs(self.velocity[0]) + abs(self.velocity[1])
+
+        # Уменьшение прозрачности
+        self.current_life -= 1
+
+        if self.current_life <= 0:
+            self.kill()
+        else:
+            alpha = int(255 * (self.current_life / self.life_time))
+            self.image.set_alpha(alpha)
+            self.rect = self.image.get_rect(center=self.rect.center)
+
+        if not self.rect.colliderect(screen_rect) or self.distance_blood > 250:
             self.kill()
 
 
