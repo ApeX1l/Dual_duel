@@ -26,12 +26,25 @@ def load_image(name, colorkey=None):
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, pos, player, key):
+    image = load_image("bullet.png", -1)
+    image_right = pygame.transform.scale(image, (25, 25))
+    image_left = pygame.transform.rotate(image_right, 180)
+    image_down = pygame.transform.rotate(image_right, -90)
+    image_up = pygame.transform.rotate(image_right, 90)
+
+    def __init__(self, pos, key):
         super().__init__(all_sprites)
-        self.image = pygame.Surface([10, 10])
-        self.image.fill('black')
+        if key == 'w' or key == 'up':
+            self.image = Bullet.image_up
+        elif key == 'a' or key == 'left':
+            self.image = Bullet.image_left
+        elif key == 's' or key == 'down':
+            self.image = Bullet.image_down
+        elif key == 'd' or key == 'right':
+            self.image = Bullet.image_right
+        self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect()
-        self.v = 500
+        self.v = 1000
         if key == 'w':
             self.rect.x = pos[0] + 15
             self.rect.y = pos[1] - 10
@@ -82,11 +95,11 @@ class Bullet(pygame.sprite.Sprite):
             self.rect.x -= self.v / fps
         elif self.direction == 'right':
             self.rect.x += self.v / fps
-        if pygame.sprite.collide_rect(self, second_player):
+        if pygame.sprite.collide_mask(self, second_player):
             second_player.hp -= 25
             create_particles((second_player.rect.x + 20, second_player.rect.y + 20))
             self.kill()
-        if pygame.sprite.collide_rect(self, first_player):
+        if pygame.sprite.collide_mask(self, first_player):
             first_player.hp -= 25
             create_particles((first_player.rect.x + 20, first_player.rect.y + 20))
             self.kill()
@@ -220,9 +233,9 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                Bullet(first_player.rect, 1, first_player.last_button)
+                Bullet(first_player.rect, first_player.last_button)
             if event.key == pygame.K_KP0:
-                Bullet(second_player.rect, 2, second_player.last_button)
+                Bullet(second_player.rect, second_player.last_button)
     screen.fill("white")
     keys = pygame.key.get_pressed()
     all_sprites.update(keys)
