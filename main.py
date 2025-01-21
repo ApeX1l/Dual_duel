@@ -9,8 +9,8 @@ screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
 
 
-def load_image(name, colorkey=None):
-    fullname = os.path.join('data', name)
+def load_image(name, path='data', colorkey=None):
+    fullname = os.path.join(path, name)
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
         sys.exit()
@@ -26,7 +26,7 @@ def load_image(name, colorkey=None):
 
 
 class Bullet(pygame.sprite.Sprite):
-    image = load_image("bullet.png", -1)
+    image = load_image("bullet.png", colorkey=-1)
     image_right = pygame.transform.scale(image, (25, 25))
     image_left = pygame.transform.rotate(image_right, 180)
     image_down = pygame.transform.rotate(image_right, -90)
@@ -47,15 +47,15 @@ class Bullet(pygame.sprite.Sprite):
         self.v = 1000
         if key == 'w':
             self.rect.x = pos[0] + 15
-            self.rect.y = pos[1] - 10
+            self.rect.y = pos[1] - 20
             self.direction = 'w'
         elif key == 'a':
             self.rect.x = pos[0] - 10
             self.rect.y = pos[1] + 15
             self.direction = 'a'
         elif key == 's':
-            self.rect.x = pos[0] + 15
-            self.rect.y = pos[1] + 40
+            self.rect.x = pos[0] + 25
+            self.rect.y = pos[1] + 85
             self.direction = 's'
         elif key == 'd':
             self.rect.x = pos[0] + 40
@@ -106,54 +106,102 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Ball(pygame.sprite.Sprite):
-    def __init__(self, radius, x, y, color):
+    def __init__(self, radius, x, y, color, player_folder):
         super().__init__(all_sprites)
         self.radius = radius
-        self.image = pygame.Surface((2 * radius, 2 * radius),
-                                    pygame.SRCALPHA, 32)
-        pygame.draw.circle(self.image, pygame.Color(color),
-                           (radius, radius), radius)
-        self.rect = pygame.Rect(x, y, 2 * radius, 2 * radius)
+        self.color = color
+        self.player_folder = player_folder  # Папка с ресурсами игрока
+        self.animations = {}  # Словарь для анимаций
+        self.load_animations()
+        self.current_frame = 0  # Текущий кадр анимации
+        self.animation_speed = 0.1  # Скорость анимации(как часто кадр будет меняться)
+        self.current_animation = 'down'  # Направление анимации по умолчанию
+        self.image = self.animations['down'][0]  # Начальное изображение
+        self.rect = self.image.get_rect(center=(x, y))
         self.hp = 100
         self.last_button = 's' if color == 'red' else 'up'
         self.v = 300
 
+    def load_animations(self):
+        # Загрузка анимаций из папок
+        for direction in ['up', 'down', 'left', 'right']:
+            path = os.path.join(self.player_folder, direction)
+            if os.path.isdir(path):
+                images = []
+                for filename in sorted(os.listdir(path)):
+                    if filename.endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                        img = load_image(os.path.join(path, filename), '', -1)
+                        img = pygame.transform.scale(img, (100, 100))
+                        images.append(img)
+                self.animations[direction] = images
+            else:
+                print('Папка не найдена')
+                self.animations[direction] = [pygame.Surface((1, 1), pygame.SRCALPHA)]
+
     def update(self, keys):
+        flag = False
+        # Управление движением
         if self == first_player:
             if keys[pygame.K_w]:
                 self.rect.y -= self.v / fps
                 self.last_button = 'w'
-            if keys[pygame.K_s]:
+                self.current_animation = 'up'
+            elif keys[pygame.K_s]:
                 self.rect.y += self.v / fps
                 self.last_button = 's'
-            if keys[pygame.K_a]:
+                self.current_animation = 'down'
+            elif keys[pygame.K_a]:
                 self.rect.x -= self.v / fps
                 self.last_button = 'a'
-            if keys[pygame.K_d]:
+                self.current_animation = 'left'
+            elif keys[pygame.K_d]:
                 self.rect.x += self.v / fps
                 self.last_button = 'd'
+                self.current_animation = 'right'
+            else:
+                flag = True
         else:
             if keys[pygame.K_UP]:
                 self.rect.y -= self.v / fps
                 self.last_button = 'up'
-            if keys[pygame.K_DOWN]:
+                self.current_animation = 'up'
+            elif keys[pygame.K_DOWN]:
                 self.rect.y += self.v / fps
                 self.last_button = 'down'
-            if keys[pygame.K_LEFT]:
+                self.current_animation = 'down'
+            elif keys[pygame.K_LEFT]:
                 self.rect.x -= self.v / fps
                 self.last_button = 'left'
-            if keys[pygame.K_RIGHT]:
+                self.current_animation = 'left'
+            elif keys[pygame.K_RIGHT]:
                 self.rect.x += self.v / fps
                 self.last_button = 'right'
+                self.current_animation = 'right'
+            else:
+                flag = True
         if self.hp <= 0:
-            self.rect.x = - 300  # костыль self.kill()
+            self.rect.x = -300  # Костыль
+        if not flag:
+            self.animate()  # Вызов функции анимации
+        else:
+            self.image = self.animations['down'][0]
+
+    def animate(self):
+        # Выбор текущей анимации
+        animation = self.animations.get(self.current_animation, self.animations[
+            'down'])  # если нету в словаре, то анимация по умолчанию
+        if animation:
+            # Обновление кадра анимации
+            self.current_frame = (self.current_frame + self.animation_speed) % len(
+                animation)  # % len(animation) позволяет зациклить анимацию
+            self.image = animation[int(self.current_frame)]  # Выбор нужного кадра анимации
 
     def correct_position(self, other_ball):
-        if pygame.sprite.collide_circle(self, other_ball):
+        if pygame.sprite.collide_rect(self, other_ball):
             dx = other_ball.rect.centerx - self.rect.centerx
             dy = other_ball.rect.centery - self.rect.centery
             distance = (dx ** 2 + dy ** 2) ** 0.5
-            min_distance = self.radius + other_ball.radius
+            min_distance = (self.rect.width / 2) + (other_ball.rect.width / 2)
             if distance < min_distance:
                 overlap = min_distance - distance
                 normal_x = 0
@@ -166,9 +214,6 @@ class Ball(pygame.sprite.Sprite):
 
 
 screen_rect = (0, 0, width, height)
-
-
-# GRAVITY = 1
 
 
 class Particle(pygame.sprite.Sprite):
@@ -223,8 +268,8 @@ def create_particles(position):
 
 rad = 20
 fps = 60
-first_player = Ball(rad, 250, 50, 'red')
-second_player = Ball(rad, 250, 450, 'blue')
+first_player = Ball(rad, 250, 50, 'red', 'first_player')
+second_player = Ball(rad, 250, 450, 'blue', 'first_player')
 running = True
 clock = pygame.time.Clock()
 while running:
