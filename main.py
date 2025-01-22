@@ -88,6 +88,7 @@ class Ball(pygame.sprite.Sprite):
         self.image = self.animations['down'][0]  # Начальное изображение
         self.rect = self.image.get_rect(center=(x, y))
         self.hp = 1000000
+        self.weapon = Weapon("m41.jpg", self)
         self.last_button = 's' if color == 'red' else 'up'
         self.v = 300
 
@@ -150,6 +151,7 @@ class Ball(pygame.sprite.Sprite):
             self.animate()  # Вызов функции анимации
         else:
             self.image = self.animations['down'][0]
+        self.weapon.update(second_player)
 
     def animate(self):
         # Выбор текущей анимации
@@ -177,6 +179,29 @@ class Ball(pygame.sprite.Sprite):
                 self.rect.x -= normal_x * overlap / 2
                 self.rect.y -= normal_y * overlap / 2
 
+
+class Weapon(pygame.sprite.Sprite):
+    def __init__(self, image_path, owner):
+        super().__init__()
+        self.owner = owner
+        self.original_image = load_image(image_path, colorkey=-1)
+        self.original_image = pygame.transform.scale(self.original_image, (77, 26))
+        self.image = self.original_image
+        self.offset = pygame.math.Vector2(-20, 25)  # Смещение от центра персонажа
+        self.rect = self.image.get_rect(center=owner.rect.center + self.offset) # Начальная позиция с учетом смещения
+        self.start_pos = self.rect.center # Сохраняем начальную позицию
+
+    def update(self, target):
+        # Вычисляем вектор от центра персонажа к цели
+        dx = target.rect.centerx - self.owner.rect.centerx
+        dy = target.rect.centery - self.owner.rect.centery
+
+        # Вычисляем угол поворота
+        angle = math.degrees(math.atan2(dy, dx))
+
+        # Поворачиваем изображение
+        self.image = pygame.transform.rotate(self.original_image, -angle)
+        self.rect = self.image.get_rect(center=self.owner.rect.center + self.offset) # Пересчитываем `rect` оружия
 
 screen_rect = (0, 0, width, height)
 
@@ -246,7 +271,7 @@ while running:
                 bullets.add(first_player.shoot(second_player))
             if event.key == pygame.K_KP0:
                 bullets.add(second_player.shoot(first_player))
-    screen.fill("white")
+    screen.fill("black")
     keys = pygame.key.get_pressed()
     all_sprites.update(keys)
 
@@ -255,6 +280,7 @@ while running:
     second_player.correct_position(first_player)
 
     all_sprites.draw(screen)
+    screen.blit(first_player.weapon.image, first_player.weapon.rect)
     clock.tick(fps)
     pygame.display.flip()
 pygame.quit()
