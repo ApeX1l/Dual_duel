@@ -187,9 +187,11 @@ class Weapon(pygame.sprite.Sprite):
         self.original_image = load_image(image_path, colorkey=-1)
         self.original_image = pygame.transform.scale(self.original_image, (77, 26))
         self.image = self.original_image
-        self.offset = pygame.math.Vector2(-20, 25)  # Смещение от центра персонажа
-        self.rect = self.image.get_rect(center=owner.rect.center + self.offset) # Начальная позиция с учетом смещения
-        self.start_pos = self.rect.center # Сохраняем начальную позицию
+        self.offset = pygame.math.Vector2(-20, 25)
+        self.rect = self.image.get_rect(center=owner.rect.center + self.offset)
+        self.start_pos = self.rect.center
+        self.flip_x = False
+        self.angle_offset = 0
 
     def update(self, target):
         # Вычисляем вектор от центра персонажа к цели
@@ -199,9 +201,20 @@ class Weapon(pygame.sprite.Sprite):
         # Вычисляем угол поворота
         angle = math.degrees(math.atan2(dy, dx))
 
-        # Поворачиваем изображение
+        if -270 < angle < -90 or 90 < angle < 270:
+            if not self.flip_x:
+                self.original_image = pygame.transform.flip(self.original_image, True, False)
+                self.flip_x = True
+                self.angle_offset = 180
+            angle += self.angle_offset
+        elif self.flip_x:
+            self.original_image = pygame.transform.flip(self.original_image, True, False)
+            self.flip_x = False
+            self.angle_offset = 0
+
         self.image = pygame.transform.rotate(self.original_image, -angle)
-        self.rect = self.image.get_rect(center=self.owner.rect.center + self.offset) # Пересчитываем `rect` оружия
+        self.rect = self.image.get_rect(center=self.owner.rect.center + self.offset)
+
 
 screen_rect = (0, 0, width, height)
 
