@@ -31,10 +31,6 @@ class Bullet(pygame.sprite.Sprite):
     image = load_image("bullet.png", colorkey=-1)
     image = pygame.transform.scale(image, (50, 50))
 
-    # image_left = pygame.transform.rotate(image_right, 180)
-    # image_down = pygame.transform.rotate(image_right, -90)
-    # image_up = pygame.transform.rotate(image_right, 90)
-
     def __init__(self, pos, target_pos):
         super().__init__(all_sprites)
         self.image = Bullet.image
@@ -66,11 +62,11 @@ class Bullet(pygame.sprite.Sprite):
 
         if pygame.sprite.collide_mask(self, second_player):
             second_player.hp -= 25
-            create_particles((second_player.rect.x + 20, second_player.rect.y + 20))
+            create_particles((second_player.rect.centerx, second_player.rect.centery))
             self.kill()
         if pygame.sprite.collide_mask(self, first_player):
             first_player.hp -= 25
-            create_particles((first_player.rect.x + 20, first_player.rect.y + 20))
+            create_particles((first_player.rect.centerx, first_player.rect.centery))
             self.kill()
 
 
