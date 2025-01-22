@@ -1,3 +1,4 @@
+import math
 import os
 import random
 import sys
@@ -7,6 +8,7 @@ pygame.init()
 size = width, height = 500, 500
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
 
 
 def load_image(name, path='data', colorkey=None):
@@ -27,74 +29,41 @@ def load_image(name, path='data', colorkey=None):
 
 class Bullet(pygame.sprite.Sprite):
     image = load_image("bullet.png", colorkey=-1)
-    image_right = pygame.transform.scale(image, (25, 25))
-    image_left = pygame.transform.rotate(image_right, 180)
-    image_down = pygame.transform.rotate(image_right, -90)
-    image_up = pygame.transform.rotate(image_right, 90)
+    image = pygame.transform.scale(image, (50, 50))
 
-    def __init__(self, pos, key):
+    # image_left = pygame.transform.rotate(image_right, 180)
+    # image_down = pygame.transform.rotate(image_right, -90)
+    # image_up = pygame.transform.rotate(image_right, 90)
+
+    def __init__(self, pos, target_pos):
         super().__init__(all_sprites)
-        if key == 'w' or key == 'up':
-            self.image = Bullet.image_up
-        elif key == 'a' or key == 'left':
-            self.image = Bullet.image_left
-        elif key == 's' or key == 'down':
-            self.image = Bullet.image_down
-        elif key == 'd' or key == 'right':
-            self.image = Bullet.image_right
+        self.image = Bullet.image
         self.mask = pygame.mask.from_surface(self.image)
-        self.rect = self.image.get_rect()
+        self.rect = self.image.get_rect(center=pos)
         self.v = 1000
-        if key == 'w':
-            self.rect.x = pos[0] + 15
-            self.rect.y = pos[1] - 20
-            self.direction = 'w'
-        elif key == 'a':
-            self.rect.x = pos[0] - 10
-            self.rect.y = pos[1] + 15
-            self.direction = 'a'
-        elif key == 's':
-            self.rect.x = pos[0] + 25
-            self.rect.y = pos[1] + 85
-            self.direction = 's'
-        elif key == 'd':
-            self.rect.x = pos[0] + 40
-            self.rect.y = pos[1] + 15
-            self.direction = 'd'
-        if key == 'up':
-            self.rect.x = pos[0] + 15
-            self.rect.y = pos[1] - 10
-            self.direction = 'up'
-        elif key == 'left':
-            self.rect.x = pos[0] - 10
-            self.rect.y = pos[1] + 15
-            self.direction = 'left'
-        elif key == 'down':
-            self.rect.x = pos[0] + 15
-            self.rect.y = pos[1] + 40
-            self.direction = 'down'
-        elif key == 'right':
-            self.rect.x = pos[0] + 40
-            self.rect.y = pos[1] + 15
-            self.direction = 'right'
+        self.rect.y += 100
+        # Вычисляем вектор направления
+        dx = target_pos[0] - pos[0]
+        dy = target_pos[1] - pos[1]
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if distance == 0:
+            self.velocity = [0, 0]
+        else:
+            # Нормализуем вектор и добавляем небольшое отклонение
+            angle_deviation = random.uniform(-0.1, 0.1)  # Случайное отклонение
+            self.velocity = [
+                (dx / distance) * self.v / fps + dy / distance * angle_deviation * self.v / fps,
+                (dy / distance) * self.v / fps - dx / distance * angle_deviation * self.v / fps
+            ]
+            # Вычисляем угол поворота
+            angle = math.degrees(math.atan2(dy, dx))
+            self.image = pygame.transform.rotate(Bullet.image, -angle)
+            self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args):
-        if self.direction == 's':
-            self.rect.y += self.v / fps
-        elif self.direction == 'w':
-            self.rect.y -= self.v / fps
-        elif self.direction == 'a':
-            self.rect.x -= self.v / fps
-        elif self.direction == 'd':
-            self.rect.x += self.v / fps
-        if self.direction == 'down':
-            self.rect.y += self.v / fps
-        elif self.direction == 'up':
-            self.rect.y -= self.v / fps
-        elif self.direction == 'left':
-            self.rect.x -= self.v / fps
-        elif self.direction == 'right':
-            self.rect.x += self.v / fps
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+
         if pygame.sprite.collide_mask(self, second_player):
             second_player.hp -= 25
             create_particles((second_player.rect.x + 20, second_player.rect.y + 20))
@@ -118,9 +87,13 @@ class Ball(pygame.sprite.Sprite):
         self.current_animation = 'down'  # Направление анимации по умолчанию
         self.image = self.animations['down'][0]  # Начальное изображение
         self.rect = self.image.get_rect(center=(x, y))
-        self.hp = 100
+        self.hp = 1000000
         self.last_button = 's' if color == 'red' else 'up'
         self.v = 300
+
+    def shoot(self, target):
+        bullet = Bullet(self.rect.center, target.rect.center)
+        return bullet
 
     def load_animations(self):
         # Загрузка анимаций из папок
@@ -144,38 +117,30 @@ class Ball(pygame.sprite.Sprite):
         if self == first_player:
             if keys[pygame.K_w]:
                 self.rect.y -= self.v / fps
-                self.last_button = 'w'
                 self.current_animation = 'up'
             elif keys[pygame.K_s]:
                 self.rect.y += self.v / fps
-                self.last_button = 's'
                 self.current_animation = 'down'
             elif keys[pygame.K_a]:
                 self.rect.x -= self.v / fps
-                self.last_button = 'a'
                 self.current_animation = 'left'
             elif keys[pygame.K_d]:
                 self.rect.x += self.v / fps
-                self.last_button = 'd'
                 self.current_animation = 'right'
             else:
                 flag = True
         else:
             if keys[pygame.K_UP]:
                 self.rect.y -= self.v / fps
-                self.last_button = 'up'
                 self.current_animation = 'up'
             elif keys[pygame.K_DOWN]:
                 self.rect.y += self.v / fps
-                self.last_button = 'down'
                 self.current_animation = 'down'
             elif keys[pygame.K_LEFT]:
                 self.rect.x -= self.v / fps
-                self.last_button = 'left'
                 self.current_animation = 'left'
             elif keys[pygame.K_RIGHT]:
                 self.rect.x += self.v / fps
-                self.last_button = 'right'
                 self.current_animation = 'right'
             else:
                 flag = True
@@ -193,7 +158,7 @@ class Ball(pygame.sprite.Sprite):
         if animation:
             # Обновление кадра анимации
             self.current_frame = (self.current_frame + self.animation_speed) % len(
-                animation)  # % len(animation) позволяет зациклить анимацию
+                animation)  # позволяет зациклить анимацию
             self.image = animation[int(self.current_frame)]  # Выбор нужного кадра анимации
 
     def correct_position(self, other_ball):
@@ -278,9 +243,9 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                Bullet(first_player.rect, first_player.last_button)
+                bullets.add(first_player.shoot(second_player))
             if event.key == pygame.K_KP0:
-                Bullet(second_player.rect, second_player.last_button)
+                bullets.add(second_player.shoot(first_player))
     screen.fill("white")
     keys = pygame.key.get_pressed()
     all_sprites.update(keys)
