@@ -9,6 +9,7 @@ pygame.init()
 size = width, height = 500, 500
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
+players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 screen_rect = (0, 0, width, height)
 
@@ -33,11 +34,12 @@ class Bullet(pygame.sprite.Sprite):
     image = load_image("bullet.png", colorkey=-1)
     image = pygame.transform.scale(image, (50, 50))
 
-    def __init__(self, pos, target_pos):
+    def __init__(self, pos, target_pos, owner):
         super().__init__(all_sprites)
         self.image = Bullet.image
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect(center=pos)
+        self.owner = owner
         self.v = 1000
         self.rect.y += 100
         # Вычисляем вектор направления
@@ -62,22 +64,20 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
 
-        if pygame.sprite.collide_mask(self, second_player):
-            second_player.hp -= 25
-            create_particles((second_player.rect.centerx, second_player.rect.centery))
-            self.kill()
-        if pygame.sprite.collide_mask(self, first_player):
-            first_player.hp -= 25
-            create_particles((first_player.rect.centerx, first_player.rect.centery))
+        if any(pygame.sprite.collide_mask(self, sprite) for sprite in players if
+               sprite != self and sprite != self.owner):
+            for i in players:
+                if i != self.owner:
+                    i.hp -= 25
+                    create_particles((i.rect.centerx, i.rect.centery))
             self.kill()
         if not self.rect.colliderect(screen_rect):
             self.kill()
 
 
-
 class Ball(pygame.sprite.Sprite):
     def __init__(self, radius, x, y, color, player_folder):
-        super().__init__(all_sprites)
+        super().__init__(all_sprites, players)
         self.radius = radius
         self.color = color
         self.player_folder = player_folder  # Папка с ресурсами игрока
@@ -94,7 +94,7 @@ class Ball(pygame.sprite.Sprite):
         self.v = 300
 
     def shoot(self, target):
-        bullet = Bullet(self.rect.center, target.rect.center)
+        bullet = Bullet(self.rect.center, target.rect.center, self)
         return bullet
 
     def load_animations(self):
