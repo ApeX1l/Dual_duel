@@ -3,12 +3,14 @@ import os
 import random
 import sys
 import pygame
+import time
 
 pygame.init()
 size = width, height = 500, 500
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
+screen_rect = (0, 0, width, height)
 
 
 def load_image(name, path='data', colorkey=None):
@@ -68,6 +70,9 @@ class Bullet(pygame.sprite.Sprite):
             first_player.hp -= 25
             create_particles((first_player.rect.centerx, first_player.rect.centery))
             self.kill()
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
+
 
 
 class Ball(pygame.sprite.Sprite):
@@ -84,7 +89,7 @@ class Ball(pygame.sprite.Sprite):
         self.image = self.animations['down'][0]  # Начальное изображение
         self.rect = self.image.get_rect(center=(x, y))
         self.hp = 1000000
-        self.weapon = Weapon("m41.jpg", self)
+        self.weapon = None
         self.last_button = 's' if color == 'red' else 'up'
         self.v = 300
 
@@ -141,13 +146,19 @@ class Ball(pygame.sprite.Sprite):
                 self.current_animation = 'right'
             else:
                 flag = True
+
         if self.hp <= 0:
             self.rect.x = -300  # Костыль
+
         if not flag:
             self.animate()  # Вызов функции анимации
         else:
             self.image = self.animations['down'][0]
-        self.weapon.update(second_player)
+
+        if first_flag_weapon:
+            first_player.weapon.update(second_player)
+        if second_flag_weapon:
+            second_player.weapon.update(first_player)
 
     def animate(self):
         # Выбор текущей анимации
@@ -212,9 +223,6 @@ class Weapon(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.owner.rect.center + self.offset)
 
 
-screen_rect = (0, 0, width, height)
-
-
 class Particle(pygame.sprite.Sprite):
     # Сгенерируем частицы разного размера
     part = pygame.Surface([3, 3])
@@ -270,18 +278,33 @@ fps = 60
 first_player = Ball(rad, 250, 50, 'red', 'first_player')
 second_player = Ball(rad, 250, 450, 'blue', 'first_player')
 running = True
+first_flag_weapon = 0
+second_flag_weapon = 0
 clock = pygame.time.Clock()
 while running:
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_SPACE] and first_flag_weapon:
+        bullets.add(first_player.shoot(second_player))
+    if keys[pygame.K_KP0] and second_flag_weapon:
+        bullets.add(second_player.shoot(first_player))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                bullets.add(first_player.shoot(second_player))
-            if event.key == pygame.K_KP0:
-                bullets.add(second_player.shoot(first_player))
+            if event.key == pygame.K_e:
+                first_flag_weapon += 1 if first_flag_weapon == 0 else -1
+                if first_flag_weapon:
+                    first_player.weapon = Weapon('m41.jpg', first_player)
+                else:
+                    first_player.weapon = None
+            if event.key == pygame.K_RCTRL:
+                second_flag_weapon += 1 if second_flag_weapon == 0 else -1
+                if second_flag_weapon:
+                    second_player.weapon = Weapon('m41.jpg', second_player)
+                else:
+                    second_player.weapon = None
+
     screen.fill("black")
-    keys = pygame.key.get_pressed()
     all_sprites.update(keys)
 
     # отталкивание
@@ -289,7 +312,10 @@ while running:
     second_player.correct_position(first_player)
 
     all_sprites.draw(screen)
-    screen.blit(first_player.weapon.image, first_player.weapon.rect)
+    if first_flag_weapon:
+        screen.blit(first_player.weapon.image, first_player.weapon.rect)
+    if second_flag_weapon:
+        screen.blit(second_player.weapon.image, second_player.weapon.rect)
     clock.tick(fps)
     pygame.display.flip()
 pygame.quit()
