@@ -3,7 +3,6 @@ import os
 import random
 import sys
 import pygame
-import time
 
 pygame.init()
 size = width, height = 500, 500
@@ -34,14 +33,14 @@ class Bullet(pygame.sprite.Sprite):
     image = load_image("bullet.png", colorkey=-1)
     image = pygame.transform.scale(image, (50, 50))
 
-    def __init__(self, pos, target_pos, owner):
+    def __init__(self, pos, target_pos, owner, weapon):
         super().__init__(all_sprites)
         self.image = Bullet.image
         self.mask = pygame.mask.from_surface(self.image)
-        self.rect = self.image.get_rect(center=pos)
+        self.rect = self.image.get_rect(center=pos)  # Используем pos как начальную позицию
         self.owner = owner
+        self.weapon = weapon  # Сохраняем ссылку на оружие
         self.v = 1000
-        self.rect.y += 100
         # Вычисляем вектор направления
         dx = target_pos[0] - pos[0]
         dy = target_pos[1] - pos[1]
@@ -196,6 +195,7 @@ class Weapon(pygame.sprite.Sprite):
         self.image = self.original_image
         self.offset = pygame.math.Vector2(-20, 25)
         self.rect = self.image.get_rect(center=owner.rect.center + self.offset)
+        self.barrel_offset = pygame.math.Vector2(-30, 5)
         self.start_pos = self.rect.center
         self.flip_x = False
         self.angle_offset = 0
@@ -221,6 +221,24 @@ class Weapon(pygame.sprite.Sprite):
 
         self.image = pygame.transform.rotate(self.original_image, -angle)
         self.rect = self.image.get_rect(center=self.owner.rect.center + self.offset)
+        self.angle = angle
+
+    def get_barrel_position(self):
+        # Создаем копию barrel_offset, чтобы не изменять оригинал
+        barrel_offset = self.barrel_offset.copy()
+        # Отражаем barrel_offset, если оружие отражено
+        if self.flip_x:
+            barrel_offset.x *= -1
+        # Поворачиваем barrel_offset на угол поворота оружия
+        rotated_offset = barrel_offset.rotate(-self.angle)
+        # Возвращаем абсолютную позицию дула
+        return self.rect.center + rotated_offset
+
+    def shoot(self, bullet_image):
+        bullet_start_pos = self.get_barrel_position()
+        target = second_player if self.owner == first_player else first_player
+        bullet = Bullet(bullet_start_pos, target.rect.center, self.owner, self)  # Передаем экземпляр Weapon
+        bullets.add(bullet)
 
 
 class Particle(pygame.sprite.Sprite):
@@ -284,9 +302,9 @@ clock = pygame.time.Clock()
 while running:
     keys = pygame.key.get_pressed()
     if keys[pygame.K_SPACE] and first_flag_weapon:
-        bullets.add(first_player.shoot(second_player))
+        first_player.weapon.shoot('png bullet')
     if keys[pygame.K_KP0] and second_flag_weapon:
-        bullets.add(second_player.shoot(first_player))
+        second_player.weapon.shoot('png bullet')
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
