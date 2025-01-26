@@ -74,10 +74,10 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Ball(pygame.sprite.Sprite):
-    def __init__(self, radius, x, y, color, player_folder):
+    def __init__(self, radius, x, y, player_folder):
         super().__init__(all_sprites, players)
         self.radius = radius
-        self.color = color
+
         self.player_folder = player_folder  # Папка с ресурсами игрока
         self.animations = {}  # Словарь для анимаций
         self.load_animations()
@@ -85,10 +85,10 @@ class Ball(pygame.sprite.Sprite):
         self.animation_speed = 0.1  # Скорость анимации(как часто кадр будет меняться)
         self.current_animation = 'down'  # Направление анимации по умолчанию
         self.image = self.animations['down'][0]  # Начальное изображение
+
         self.rect = self.image.get_rect(center=(x, y))
         self.hp = 1000000
         self.weapon = None
-        self.last_button = 's' if color == 'red' else 'up'
         self.v = 300
 
     def shoot(self, target):
@@ -151,9 +151,9 @@ class Ball(pygame.sprite.Sprite):
         else:
             self.image = self.animations['down'][0]
 
-        if first_flag_weapon:
+        if first_player.weapon:
             first_player.weapon.update(second_player)
-        if second_flag_weapon:
+        if second_player.weapon:
             second_player.weapon.update(first_player)
 
     def animate(self):
@@ -297,7 +297,7 @@ class Particle(pygame.sprite.Sprite):
 def create_particles(position):
     particle_count = 20
     numbers = range(-5, 5)
-    for _ in range(particle_count):
+    for i in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers))
 
 
@@ -308,17 +308,15 @@ Wall(width - 1, 0, 1, height)
 
 rad = 20
 fps = 60
-first_player = Ball(rad, 250, 50, 'red', 'first_player')
-second_player = Ball(rad, 250, 450, 'blue', 'first_player')
+first_player = Ball(rad, 250, 50, 'first_player')
+second_player = Ball(rad, 250, 450, 'first_player')
 running = True
-first_flag_weapon = 0
-second_flag_weapon = 0
 clock = pygame.time.Clock()
 while running:
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_SPACE] and first_flag_weapon:
+    if keys[pygame.K_SPACE] and first_player.weapon:
         first_player.weapon.shoot('png bullet')
-    if keys[pygame.K_KP0] and second_flag_weapon:
+    if keys[pygame.K_KP0] and second_player.weapon:
         second_player.weapon.shoot('png bullet')
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -329,17 +327,31 @@ while running:
                 new_weapon.spawn_weapon()
                 weapons.add(new_weapon)
             if event.key == pygame.K_e:
-                first_flag_weapon += 1 if first_flag_weapon == 0 else -1
-                if first_flag_weapon:
-                    first_player.weapon = Weapon('m41.jpg', first_player)
-                else:
-                    first_player.weapon = None
+                for weapon in weapons:
+                    if pygame.sprite.collide_rect(first_player, weapon):
+                        if first_player.weapon:
+                            dropped_weapon = first_player.weapon
+                            dropped_weapon.owner = None
+                            dropped_weapon.rect.center = first_player.rect.center
+                            weapons.add(dropped_weapon)
+                            first_player.weapon = None
+                        first_player.weapon = weapon
+                        weapon.owner = first_player
+                        weapons.remove(weapon)
+                        break
             if event.key == pygame.K_RCTRL:
-                second_flag_weapon += 1 if second_flag_weapon == 0 else -1
-                if second_flag_weapon:
-                    second_player.weapon = Weapon('m41.jpg', second_player)
-                else:
-                    second_player.weapon = None
+                for weapon in weapons:
+                    if pygame.sprite.collide_rect(second_player, weapon):
+                        if second_player.weapon:
+                            dropped_weapon = second_player.weapon
+                            dropped_weapon.owner = None
+                            dropped_weapon.rect.center = second_player.rect.center
+                            weapons.add(dropped_weapon)
+                            second_player.weapon = None
+                        second_player.weapon = weapon
+                        weapon.owner = second_player
+                        weapons.remove(weapon)
+                        break
 
     screen.fill("black")
     all_sprites.update(keys)
@@ -349,9 +361,9 @@ while running:
 
     all_sprites.draw(screen)
     weapons.draw(screen)
-    if first_flag_weapon:
+    if first_player.weapon:
         screen.blit(first_player.weapon.image, first_player.weapon.rect)
-    if second_flag_weapon:
+    if second_player.weapon:
         screen.blit(second_player.weapon.image, second_player.weapon.rect)
     clock.tick(fps)
     pygame.display.flip()
