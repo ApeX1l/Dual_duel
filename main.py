@@ -8,6 +8,8 @@ pygame.init()
 size = width, height = 500, 500
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
+weapons = pygame.sprite.Group()
+walls = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 screen_rect = (0, 0, width, height)
@@ -179,19 +181,32 @@ class Ball(pygame.sprite.Sprite):
 
 
 class Weapon(pygame.sprite.Sprite):
+    image = load_image('m41.jpg', colorkey=-1)
+
     def __init__(self, image_path, owner):
-        super().__init__()
+        super().__init__(weapons)
         self.owner = owner
         self.original_image = load_image(image_path, colorkey=-1)
         self.original_image = pygame.transform.scale(self.original_image, (77, 26))
         self.image = self.original_image
         self.offset = pygame.math.Vector2(-20, 15)
-        self.rect = self.image.get_rect(center=owner.rect.center + self.offset)
+        if self.owner is not None:
+            self.rect = self.image.get_rect(center=owner.rect.center + self.offset)
+        else:
+            self.rect = self.image.get_rect(center=(10, 10))
         self.barrel_offset = pygame.math.Vector2(20, -5)
         self.start_pos = self.rect.center
         self.flip_x = False
         self.angle_offset = 0
         self.fire_timer = 0
+
+    def spawn_weapon(self):
+        while True:
+            self.rect.x = random.randrange(500)
+            self.rect.y = random.randrange(500)
+            if not any(pygame.sprite.collide_rect(self, sprite) for sprite in weapons if
+                       sprite != self) and not pygame.sprite.spritecollideany(self, walls):
+                break
 
     def update(self, target):
         dx = target.rect.centerx - self.owner.rect.centerx
@@ -230,6 +245,16 @@ class Weapon(pygame.sprite.Sprite):
             bullet = Bullet(bullet_start_pos, target.rect.center, self.owner, self)
             bullets.add(bullet)
             self.fire_timer = 10
+
+
+class Wall(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height):
+        super().__init__(all_sprites, walls)
+        self.image = pygame.Surface((width, height))
+        self.image.fill(pygame.Color("black"))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
 
 
 class Particle(pygame.sprite.Sprite):
@@ -276,6 +301,11 @@ def create_particles(position):
         Particle(position, random.choice(numbers), random.choice(numbers))
 
 
+Wall(0, 0, width, 1)
+Wall(0, 0, 1, height)
+Wall(0, height - 1, width, 1)
+Wall(width - 1, 0, 1, height)
+
 rad = 20
 fps = 60
 first_player = Ball(rad, 250, 50, 'red', 'first_player')
@@ -294,6 +324,10 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                new_weapon = Weapon("m41.jpg", owner=None)
+                new_weapon.spawn_weapon()
+                weapons.add(new_weapon)
             if event.key == pygame.K_e:
                 first_flag_weapon += 1 if first_flag_weapon == 0 else -1
                 if first_flag_weapon:
@@ -314,6 +348,7 @@ while running:
     second_player.correct_position(first_player)
 
     all_sprites.draw(screen)
+    weapons.draw(screen)
     if first_flag_weapon:
         screen.blit(first_player.weapon.image, first_player.weapon.rect)
     if second_flag_weapon:
