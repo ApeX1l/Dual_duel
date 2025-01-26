@@ -37,24 +37,21 @@ class Bullet(pygame.sprite.Sprite):
         super().__init__(all_sprites)
         self.image = Bullet.image
         self.mask = pygame.mask.from_surface(self.image)
-        self.rect = self.image.get_rect(center=pos)  # Используем pos как начальную позицию
+        self.rect = self.image.get_rect(center=pos)
         self.owner = owner
-        self.weapon = weapon  # Сохраняем ссылку на оружие
+        self.weapon = weapon
         self.v = 1000
-        # Вычисляем вектор направления
         dx = target_pos[0] - pos[0]
         dy = target_pos[1] - pos[1]
         distance = math.sqrt(dx ** 2 + dy ** 2)
         if distance == 0:
             self.velocity = [0, 0]
         else:
-            # Нормализуем вектор и добавляем небольшое отклонение
-            angle_deviation = random.uniform(-0.1, 0.1)  # Случайное отклонение
+            angle_deviation = random.uniform(-0.1, 0.1)
             self.velocity = [
                 (dx / distance) * self.v / fps + dy / distance * angle_deviation * self.v / fps,
                 (dy / distance) * self.v / fps - dx / distance * angle_deviation * self.v / fps
             ]
-            # Вычисляем угол поворота
             angle = math.degrees(math.atan2(dy, dx))
             self.image = pygame.transform.rotate(Bullet.image, -angle)
             self.rect = self.image.get_rect(center=self.rect.center)
@@ -97,7 +94,6 @@ class Ball(pygame.sprite.Sprite):
         return bullet
 
     def load_animations(self):
-        # Загрузка анимаций из папок
         for direction in ['up', 'down', 'left', 'right']:
             path = os.path.join(self.player_folder, direction)
             if os.path.isdir(path):
@@ -114,7 +110,6 @@ class Ball(pygame.sprite.Sprite):
 
     def update(self, keys):
         flag = False
-        # Управление движением
         if self == first_player:
             if keys[pygame.K_w]:
                 self.rect.y -= self.v / fps
@@ -147,10 +142,10 @@ class Ball(pygame.sprite.Sprite):
                 flag = True
 
         if self.hp <= 0:
-            self.rect.x = -300  # Костыль
+            self.rect.x = -300
 
         if not flag:
-            self.animate()  # Вызов функции анимации
+            self.animate()
         else:
             self.image = self.animations['down'][0]
 
@@ -160,14 +155,11 @@ class Ball(pygame.sprite.Sprite):
             second_player.weapon.update(first_player)
 
     def animate(self):
-        # Выбор текущей анимации
         animation = self.animations.get(self.current_animation, self.animations[
-            'down'])  # если нету в словаре, то анимация по умолчанию
+            'down'])
         if animation:
-            # Обновление кадра анимации
-            self.current_frame = (self.current_frame + self.animation_speed) % len(
-                animation)  # позволяет зациклить анимацию
-            self.image = animation[int(self.current_frame)]  # Выбор нужного кадра анимации
+            self.current_frame = (self.current_frame + self.animation_speed) % len(animation)
+            self.image = animation[int(self.current_frame)]
 
     def correct_position(self, other_ball):
         if pygame.sprite.collide_rect(self, other_ball):
@@ -193,19 +185,18 @@ class Weapon(pygame.sprite.Sprite):
         self.original_image = load_image(image_path, colorkey=-1)
         self.original_image = pygame.transform.scale(self.original_image, (77, 26))
         self.image = self.original_image
-        self.offset = pygame.math.Vector2(-20, 25)
+        self.offset = pygame.math.Vector2(-20, 15)
         self.rect = self.image.get_rect(center=owner.rect.center + self.offset)
-        self.barrel_offset = pygame.math.Vector2(-30, 5)
+        self.barrel_offset = pygame.math.Vector2(20, -5)
         self.start_pos = self.rect.center
         self.flip_x = False
         self.angle_offset = 0
+        self.fire_timer = 0
 
     def update(self, target):
-        # Вычисляем вектор от центра персонажа к цели
         dx = target.rect.centerx - self.owner.rect.centerx
         dy = target.rect.centery - self.owner.rect.centery
 
-        # Вычисляем угол поворота
         angle = math.degrees(math.atan2(dy, dx))
 
         if -270 < angle < -90 or 90 < angle < 270:
@@ -222,40 +213,38 @@ class Weapon(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(self.original_image, -angle)
         self.rect = self.image.get_rect(center=self.owner.rect.center + self.offset)
         self.angle = angle
+        if self.fire_timer > 0:
+            self.fire_timer -= 1
 
     def get_barrel_position(self):
-        # Создаем копию barrel_offset, чтобы не изменять оригинал
         barrel_offset = self.barrel_offset.copy()
-        # Отражаем barrel_offset, если оружие отражено
         if self.flip_x:
             barrel_offset.x *= -1
-        # Поворачиваем barrel_offset на угол поворота оружия
-        rotated_offset = barrel_offset.rotate(-self.angle)
-        # Возвращаем абсолютную позицию дула
+        rotated_offset = barrel_offset.rotate(self.angle)
         return self.rect.center + rotated_offset
 
     def shoot(self, bullet_image):
-        bullet_start_pos = self.get_barrel_position()
-        target = second_player if self.owner == first_player else first_player
-        bullet = Bullet(bullet_start_pos, target.rect.center, self.owner, self)  # Передаем экземпляр Weapon
-        bullets.add(bullet)
+        if self.fire_timer == 0:
+            bullet_start_pos = self.get_barrel_position()
+            target = second_player if self.owner == first_player else first_player
+            bullet = Bullet(bullet_start_pos, target.rect.center, self.owner, self)
+            bullets.add(bullet)
+            self.fire_timer = 10
 
 
 class Particle(pygame.sprite.Sprite):
-    # Сгенерируем частицы разного размера
     part = pygame.Surface([3, 3])
     part.fill('red')
     fire = [part]
-    for scale in (3, 3):  # Увеличил размеры, чтобы было заметнее уменьшение
+    for scale in (3, 3):
         fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
     def __init__(self, pos, dx, dy):
-        super().__init__(all_sprites)  # Перенёс вызов all_sprites в __init__
-        self.original_images = self.fire  # Сохраняем оригинальные изображения
+        super().__init__(all_sprites)
+        self.original_images = self.fire
         self.image = random.choice(self.original_images)
-        self.rect = self.image.get_rect(center=pos)  # Задаём позицию по центру
+        self.rect = self.image.get_rect(center=pos)
 
-        # у каждой частицы своя скорость — это вектор
         self.velocity = [dx, dy]
 
         self.distance_blood = 0
@@ -263,12 +252,10 @@ class Particle(pygame.sprite.Sprite):
         self.current_life = self.life_time
 
     def update(self, *keys):
-        # перемещаем частицу
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
         self.distance_blood += abs(self.velocity[0]) + abs(self.velocity[1])
 
-        # Уменьшение прозрачности
         self.current_life -= 1
 
         if self.current_life <= 0:
@@ -283,9 +270,7 @@ class Particle(pygame.sprite.Sprite):
 
 
 def create_particles(position):
-    # количество создаваемых частиц
     particle_count = 20
-    # возможные скорости
     numbers = range(-5, 5)
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers))
@@ -325,7 +310,6 @@ while running:
     screen.fill("black")
     all_sprites.update(keys)
 
-    # отталкивание
     first_player.correct_position(second_player)
     second_player.correct_position(first_player)
 
