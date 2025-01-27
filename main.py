@@ -5,10 +5,11 @@ import sys
 import pygame
 
 pygame.init()
-size = width, height = 500, 500
+size = width, height = 1920, 1080
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
 weapons = pygame.sprite.Group()
+protection = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
@@ -62,12 +63,19 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
 
+        for armor in protection:
+            if pygame.sprite.collide_mask(self, armor):
+                armor.hp -= 10
+                create_particles((armor.rect.centerx, armor.rect.centery), armor)
+                self.kill()
+                break
+
         if any(pygame.sprite.collide_mask(self, sprite) for sprite in players if
                sprite != self and sprite != self.owner):
             for i in players:
                 if i != self.owner:
                     i.hp -= 25
-                    create_particles((i.rect.centerx, i.rect.centery))
+                    create_particles((i.rect.centerx, i.rect.centery), i)
             self.kill()
         if not self.rect.colliderect(screen_rect):
             self.kill()
@@ -78,16 +86,16 @@ class Ball(pygame.sprite.Sprite):
         super().__init__(all_sprites, players)
         self.radius = radius
 
-        self.player_folder = player_folder  # Папка с ресурсами игрока
-        self.animations = {}  # Словарь для анимаций
+        self.player_folder = player_folder
+        self.animations = {}
         self.load_animations()
-        self.current_frame = 0  # Текущий кадр анимации
-        self.animation_speed = 0.1  # Скорость анимации(как часто кадр будет меняться)
-        self.current_animation = 'down'  # Направление анимации по умолчанию
-        self.image = self.animations['down'][0]  # Начальное изображение
+        self.current_frame = 0
+        self.animation_speed = 0.1
+        self.current_animation = 'down'
+        self.image = self.animations['down'][0]
 
         self.rect = self.image.get_rect(center=(x, y))
-        self.hp = 1000000
+        self.hp = 1000
         self.weapon = None
         self.v = 300
 
@@ -142,7 +150,7 @@ class Ball(pygame.sprite.Sprite):
                 self.current_animation = 'right'
             else:
                 flag = True
-
+        print(first_player.rect.x, first_player.rect.y)
         if self.hp <= 0:
             self.rect.x = -300
 
@@ -157,8 +165,7 @@ class Ball(pygame.sprite.Sprite):
             second_player.weapon.update(first_player)
 
     def animate(self):
-        animation = self.animations.get(self.current_animation, self.animations[
-            'down'])
+        animation = self.animations.get(self.current_animation, self.animations['down'])
         if animation:
             self.current_frame = (self.current_frame + self.animation_speed) % len(animation)
             self.image = animation[int(self.current_frame)]
@@ -202,8 +209,8 @@ class Weapon(pygame.sprite.Sprite):
 
     def spawn_weapon(self):
         while True:
-            self.rect.x = random.randrange(500)
-            self.rect.y = random.randrange(500)
+            self.rect.x = random.randrange(195, 1645)
+            self.rect.y = random.randrange(100, 870)
             if not any(pygame.sprite.collide_rect(self, sprite) for sprite in weapons if
                        sprite != self) and not pygame.sprite.spritecollideany(self, walls):
                 break
@@ -247,6 +254,24 @@ class Weapon(pygame.sprite.Sprite):
             self.fire_timer = 10
 
 
+class Armor(pygame.sprite.Sprite):
+    image = load_image('armor_first.jpg', colorkey=-1)
+    image = pygame.transform.scale(image, (100, 50))
+
+    def __init__(self, owner):
+        super().__init__(all_sprites, protection)
+        self.image = Armor.image
+        self.rect = self.image.get_rect()
+        self.rect.center = owner.rect.center
+        self.hp = 100
+        self.owner = owner
+
+    def update(self, *keys):
+        self.rect.center = self.owner.rect.center
+        if self.hp == 0:
+            self.kill()
+
+
 class Wall(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__(all_sprites, walls)
@@ -258,15 +283,16 @@ class Wall(pygame.sprite.Sprite):
 
 
 class Particle(pygame.sprite.Sprite):
-    part = pygame.Surface([3, 3])
-    part.fill('red')
-    fire = [part]
-    for scale in (3, 3):
-        fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
-    def __init__(self, pos, dx, dy):
+    def __init__(self, pos, dx, dy, surface):
         super().__init__(all_sprites)
-        self.original_images = self.fire
+        part = pygame.Surface([3, 3])
+        color = 'red' if surface in players else 'gray'
+        part.fill(color)
+        fire = [part]
+        for scale in (3, 3):
+            fire.append(pygame.transform.scale(fire[0], (scale, scale)))
+        self.original_images = fire
         self.image = random.choice(self.original_images)
         self.rect = self.image.get_rect(center=pos)
 
@@ -294,25 +320,28 @@ class Particle(pygame.sprite.Sprite):
             self.kill()
 
 
-def create_particles(position):
+def create_particles(position, surface):
     particle_count = 20
     numbers = range(-5, 5)
     for i in range(particle_count):
-        Particle(position, random.choice(numbers), random.choice(numbers))
+        Particle(position, random.choice(numbers), random.choice(numbers), surface)
 
 
 Wall(0, 0, width, 1)
 Wall(0, 0, 1, height)
 Wall(0, height - 1, width, 1)
 Wall(width - 1, 0, 1, height)
-
+last_spawn_time = 0
+spawn_interval = 5000
 rad = 20
 fps = 60
-first_player = Ball(rad, 250, 50, 'first_player')
-second_player = Ball(rad, 250, 450, 'first_player')
+first_player = Ball(rad, 955, 150, 'first_player')
+second_player = Ball(rad, 955, 920, 'first_player')
+first_armor = Armor(first_player)
 running = True
 clock = pygame.time.Clock()
 while running:
+    current_time = pygame.time.get_ticks()
     keys = pygame.key.get_pressed()
     if keys[pygame.K_SPACE] and first_player.weapon:
         first_player.weapon.shoot('png bullet')
@@ -322,10 +351,6 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_BACKSPACE:
-                new_weapon = Weapon("m41.jpg", owner=None)
-                new_weapon.spawn_weapon()
-                weapons.add(new_weapon)
             if event.key == pygame.K_e:
                 for weapon in weapons:
                     if pygame.sprite.collide_rect(first_player, weapon):
@@ -352,6 +377,12 @@ while running:
                         weapon.owner = second_player
                         weapons.remove(weapon)
                         break
+
+    if current_time - last_spawn_time >= spawn_interval:
+        new_weapon = Weapon("m41.jpg", owner=None)
+        new_weapon.spawn_weapon()
+        weapons.add(new_weapon)
+        last_spawn_time = current_time
 
     screen.fill("black")
     all_sprites.update(keys)
