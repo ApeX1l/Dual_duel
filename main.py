@@ -193,6 +193,7 @@ class Weapon(pygame.sprite.Sprite):
     def __init__(self, image_path, owner):
         super().__init__(weapons)
         self.owner = owner
+        self.ammo = 30
         self.original_image = load_image(image_path, colorkey=-1)
         self.original_image = pygame.transform.scale(self.original_image, (77, 26))
         self.image = self.original_image
@@ -246,12 +247,13 @@ class Weapon(pygame.sprite.Sprite):
         return self.rect.center + rotated_offset
 
     def shoot(self, bullet_image):
-        if self.fire_timer == 0:
+        if self.fire_timer == 0 and self.ammo > 0:
             bullet_start_pos = self.get_barrel_position()
             target = second_player if self.owner == first_player else first_player
             bullet = Bullet(bullet_start_pos, target.rect.center, self.owner, self)
             bullets.add(bullet)
             self.fire_timer = 10
+            self.ammo -= 1
 
 
 class Armor(pygame.sprite.Sprite):
