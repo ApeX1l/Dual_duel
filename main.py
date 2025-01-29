@@ -11,6 +11,7 @@ all_sprites = pygame.sprite.Group()
 weapons = pygame.sprite.Group()
 protection = pygame.sprite.Group()
 walls = pygame.sprite.Group()
+floor = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 screen_rect = (0, 0, width, height)
@@ -339,16 +340,81 @@ def create_particles(position, surface):
         Particle(position, random.choice(numbers), random.choice(numbers), surface)
 
 
-Wall(0, 0, width, 1)
-Wall(0, 0, 1, height)
-Wall(0, height - 1, width, 1)
-Wall(width - 1, 0, 1, height)
+class Box(pygame.sprite.Sprite):
+    def __init__(self, x, y, surface):
+        super().__init__(walls)
+        self.image = tile_images[surface]
+        self.image = pygame.transform.scale(self.image, (100, 100))
+        self.rect = self.image.get_rect().move(
+            tile_width * x, tile_height * y)
+        self.hp = 50
+
+
+class Grass(pygame.sprite.Sprite):
+    def __init__(self, x, y, surface):
+        super().__init__(floor)
+        self.image = tile_images[surface]
+        self.image = pygame.transform.scale(self.image, (100, 100))
+        self.rect = self.image.get_rect().move(
+            tile_width * x, tile_height * y)
+
+
+def load_level(filename):
+    filename = "data/" + filename
+    # читаем уровень, убирая символы перевода строки
+    with open(filename, 'r') as mapFile:
+        level_map = [line.strip() for line in mapFile]
+
+    # и подсчитываем максимальную длину
+    max_width = max(map(len, level_map))
+
+    # дополняем каждую строку пустыми клетками ('.')
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+
+tile_images = {
+    'wall': load_image('box.png'),
+    'empty': load_image('grass.png')
+}
+tile_width = tile_height = 100
+
+
+def tile(tile_type, pos_x, pos_y):
+    if tile_type == 'wall':
+        Box(pos_x, pos_y, tile_type)
+    else:
+        Grass(pos_x, pos_y, tile_type)
+        pass
+
+
+def generate_level(level):
+    new_player, x, y = None, None, None
+    for y in range(len(level)):
+        for x in range(len(level[y])):
+            if level[y][x] == '.':
+                tile('empty', x, y)
+            elif level[y][x] == '#':
+                tile('wall', x, y)
+                walls.add()
+            elif level[y][x] == '@':
+                tile('empty', x, y)
+                # new_player = Ball(20, 955, 150, 'first_player')
+    # вернем игрока, а также размер поля в клетках
+    return new_player, x, y
+
+
+player, level_x, level_y = generate_level(load_level('map.txt'))
+
+# Wall(0, 0, width, 1)
+# Wall(0, 0, 1, height)
+# Wall(0, height - 1, width, 1)
+# Wall(width - 1, 0, 1, height)
 last_spawn_time = 0
 spawn_interval = 5000
 rad = 20
 fps = 60
-first_player = Player(rad, 250, 150, 'first_player')
-second_player = Player(rad, 250, 350, 'first_player')
+first_player = Player(rad, 960, 100, 'first_player')
+second_player = Player(rad, 960, 980, 'first_player')
 running = True
 clock = pygame.time.Clock()
 while running:
@@ -427,6 +493,8 @@ while running:
     first_player.correct_position(second_player)
     second_player.correct_position(first_player)
 
+    floor.draw(screen)
+    walls.draw(screen)
     all_sprites.draw(screen)
     protection.draw(screen)
     weapons.draw(screen)
