@@ -63,25 +63,28 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
 
-        for armor in protection:
-            if pygame.sprite.collide_mask(self, armor):
-                armor.hp -= 10
-                create_particles((armor.rect.centerx, armor.rect.centery), armor)
-                self.kill()
-                break
-
-        if any(pygame.sprite.collide_mask(self, sprite) for sprite in players if
-               sprite != self and sprite != self.owner):
-            for i in players:
-                if i != self.owner:
-                    i.hp -= 25
-                    create_particles((i.rect.centerx, i.rect.centery), i)
-            self.kill()
+        for i in players:
+            if i != self.owner:
+                if i.armor is None:
+                    if any(pygame.sprite.collide_mask(self, sprite) for sprite in players if
+                           sprite != self and sprite != self.owner):
+                        for i in players:
+                            if i != self.owner:
+                                i.hp -= 25
+                                create_particles((i.rect.centerx, i.rect.centery), i)
+                        self.kill()
+                else:
+                    if pygame.sprite.collide_mask(self, i.armor):
+                        i.armor.hp -= 10
+                        print(i.armor.hp)
+                        create_particles((i.rect.centerx, i.rect.centery), i.armor)
+                        self.kill()
+                        break
         if not self.rect.colliderect(screen_rect):
             self.kill()
 
 
-class Ball(pygame.sprite.Sprite):
+class Player(pygame.sprite.Sprite):
     def __init__(self, radius, x, y, player_folder):
         super().__init__(all_sprites, players)
         self.radius = radius
@@ -97,11 +100,8 @@ class Ball(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x, y))
         self.hp = 1000
         self.weapon = None
+        self.armor = None
         self.v = 300
-
-    def shoot(self, target):
-        bullet = Bullet(self.rect.center, target.rect.center, self)
-        return bullet
 
     def load_animations(self):
         for direction in ['up', 'down', 'left', 'right']:
@@ -150,7 +150,6 @@ class Ball(pygame.sprite.Sprite):
                 self.current_animation = 'right'
             else:
                 flag = True
-        print(first_player.rect.x, first_player.rect.y)
         if self.hp <= 0:
             self.rect.x = -300
 
@@ -163,6 +162,8 @@ class Ball(pygame.sprite.Sprite):
             first_player.weapon.update(second_player)
         if second_player.weapon:
             second_player.weapon.update(first_player)
+        if self.armor is not None:
+            self.armor.update()
 
     def animate(self):
         animation = self.animations.get(self.current_animation, self.animations['down'])
@@ -188,8 +189,6 @@ class Ball(pygame.sprite.Sprite):
 
 
 class Weapon(pygame.sprite.Sprite):
-    image = load_image('m41.jpg', colorkey=-1)
-
     def __init__(self, image_path, owner):
         super().__init__(weapons)
         self.owner = owner
@@ -203,15 +202,14 @@ class Weapon(pygame.sprite.Sprite):
         else:
             self.rect = self.image.get_rect(center=(10, 10))
         self.barrel_offset = pygame.math.Vector2(20, -5)
-        self.start_pos = self.rect.center
         self.flip_x = False
         self.angle_offset = 0
         self.fire_timer = 0
 
     def spawn_weapon(self):
         while True:
-            self.rect.x = random.randrange(195, 1645)
-            self.rect.y = random.randrange(100, 870)
+            self.rect.x = random.randrange(1920)
+            self.rect.y = random.randrange(1080)
             if not any(pygame.sprite.collide_rect(self, sprite) for sprite in weapons if
                        sprite != self) and not pygame.sprite.spritecollideany(self, walls):
                 break
@@ -257,20 +255,32 @@ class Weapon(pygame.sprite.Sprite):
 
 
 class Armor(pygame.sprite.Sprite):
-    image = load_image('armor_first.jpg', colorkey=-1)
-    image = pygame.transform.scale(image, (100, 50))
-
-    def __init__(self, owner):
-        super().__init__(all_sprites, protection)
-        self.image = Armor.image
-        self.rect = self.image.get_rect()
-        self.rect.center = owner.rect.center
-        self.hp = 100
+    def __init__(self, armor_path, owner):
+        super().__init__(protection)
         self.owner = owner
 
-    def update(self, *keys):
-        self.rect.center = self.owner.rect.center
-        if self.hp == 0:
+        self.image = load_image(armor_path, colorkey=-1)
+        self.image = pygame.transform.scale(self.image, (100, 50))
+
+        if self.owner is not None:
+            self.rect = self.image.get_rect(center=owner.rect.center)
+        else:
+            self.rect = self.image.get_rect(center=(10, 10))
+        self.hp = 200
+
+    def spawn_armor(self):
+        while True:
+            self.rect.x = random.randrange(1920)
+            self.rect.y = random.randrange(1080)
+            if not any(pygame.sprite.collide_rect(self, sprite) for sprite in protection if
+                       sprite != self) and not pygame.sprite.spritecollideany(self, walls):
+                break
+
+    def update(self):
+        print(self.hp)
+        self.rect = self.image.get_rect(center=self.owner.rect.center)
+        if self.hp <= 0:
+            self.owner.armor = None
             self.kill()
 
 
@@ -337,9 +347,8 @@ last_spawn_time = 0
 spawn_interval = 5000
 rad = 20
 fps = 60
-first_player = Ball(rad, 955, 150, 'first_player')
-second_player = Ball(rad, 955, 920, 'first_player')
-first_armor = Armor(first_player)
+first_player = Player(rad, 250, 150, 'first_player')
+second_player = Player(rad, 250, 350, 'first_player')
 running = True
 clock = pygame.time.Clock()
 while running:
@@ -366,6 +375,18 @@ while running:
                         weapon.owner = first_player
                         weapons.remove(weapon)
                         break
+                for armor in protection:
+                    if pygame.sprite.collide_rect(first_player, armor):
+                        if first_player.armor:
+                            dropped_armor = first_player.armor
+                            dropped_armor.owner = None
+                            dropped_armor.rect.center = first_player.rect.center
+                            protection.add(dropped_armor)
+                            first_player.armor = None
+                        first_player.armor = armor
+                        armor.owner = first_player
+                        protection.remove(armor)
+                        break
             if event.key == pygame.K_RCTRL:
                 for weapon in weapons:
                     if pygame.sprite.collide_rect(second_player, weapon):
@@ -379,10 +400,24 @@ while running:
                         weapon.owner = second_player
                         weapons.remove(weapon)
                         break
-
+                for armor in protection:
+                    if pygame.sprite.collide_rect(second_player, armor):
+                        if second_player.armor:
+                            dropped_armor = second_player.armor
+                            dropped_armor.owner = None
+                            dropped_armor.rect.center = second_player.rect.center
+                            protection.add(dropped_armor)
+                            second_player.armor = None
+                        second_player.armor = armor
+                        armor.owner = second_player
+                        protection.remove(armor)
+                        break
     if current_time - last_spawn_time >= spawn_interval:
-        new_weapon = Weapon("m41.jpg", owner=None)
+        new_weapon = Weapon('m41.jpg', None)
+        new_armor = Armor('armor_first.jpg', None)
+        new_armor.spawn_armor()
         new_weapon.spawn_weapon()
+        protection.add(new_armor)
         weapons.add(new_weapon)
         last_spawn_time = current_time
 
@@ -393,7 +428,13 @@ while running:
     second_player.correct_position(first_player)
 
     all_sprites.draw(screen)
+    protection.draw(screen)
     weapons.draw(screen)
+    if first_player.armor:
+        screen.blit(first_player.armor.image, first_player.armor.rect)
+    if second_player.armor:
+        screen.blit(second_player.armor.image, second_player.armor.rect)
+
     if first_player.weapon:
         screen.blit(first_player.weapon.image, first_player.weapon.rect)
     if second_player.weapon:
