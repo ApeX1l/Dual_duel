@@ -11,6 +11,7 @@ all_sprites = pygame.sprite.Group()
 weapons = pygame.sprite.Group()
 protection = pygame.sprite.Group()
 walls = pygame.sprite.Group()
+iron_box = pygame.sprite.Group()
 floor = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
@@ -66,8 +67,15 @@ class Bullet(pygame.sprite.Sprite):
         box = pygame.sprite.spritecollideany(self, walls)
         if box is not None:
             box.hp -= 10
+            print(box.hp)
             create_particles((box.rect.centerx, box.rect.centery), box)
-            box.update()
+            if box.hp <= 0:
+                box.kill()
+            self.kill()
+
+        iron = pygame.sprite.spritecollideany(self, iron_box)
+        if iron is not None:
+            create_particles((iron.rect.centerx, iron.rect.centery), iron)
             self.kill()
 
         for i in players:
@@ -132,22 +140,22 @@ class Player(pygame.sprite.Sprite):
             if keys[pygame.K_w]:
                 self.rect.y -= self.v / fps
                 self.current_animation = 'up'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y += self.v / fps
             elif keys[pygame.K_s]:
                 self.rect.y += self.v / fps
                 self.current_animation = 'down'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y -= self.v / fps
             elif keys[pygame.K_a]:
                 self.rect.x -= self.v / fps
                 self.current_animation = 'left'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.x += self.v / fps
             elif keys[pygame.K_d]:
                 self.rect.x += self.v / fps
                 self.current_animation = 'right'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.x -= self.v / fps
             else:
                 flag = True
@@ -155,22 +163,22 @@ class Player(pygame.sprite.Sprite):
             if keys[pygame.K_UP]:
                 self.rect.y -= self.v / fps
                 self.current_animation = 'up'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y += self.v / fps
             elif keys[pygame.K_DOWN]:
                 self.rect.y += self.v / fps
                 self.current_animation = 'down'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y -= self.v / fps
             elif keys[pygame.K_LEFT]:
                 self.rect.x -= self.v / fps
                 self.current_animation = 'left'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.x += self.v / fps
             elif keys[pygame.K_RIGHT]:
                 self.rect.x += self.v / fps
                 self.current_animation = 'right'
-                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.x -= self.v / fps
             else:
                 flag = True
@@ -195,22 +203,6 @@ class Player(pygame.sprite.Sprite):
             self.current_frame = (self.current_frame + self.animation_speed) % len(animation)
             self.image = animation[int(self.current_frame)]
 
-    def correct_position(self, other_ball):
-        if pygame.sprite.collide_rect(self, other_ball):
-            dx = other_ball.rect.centerx - self.rect.centerx
-            dy = other_ball.rect.centery - self.rect.centery
-            distance = (dx ** 2 + dy ** 2) ** 0.5
-            min_distance = (self.rect.width / 2) + (other_ball.rect.width / 2)
-            if distance < min_distance:
-                overlap = min_distance - distance
-                normal_x = 0
-                normal_y = 0
-                if distance != 0:
-                    normal_x = dx / distance
-                    normal_y = dy / distance
-                self.rect.x -= normal_x * overlap / 2
-                self.rect.y -= normal_y * overlap / 2
-
 
 class Weapon(pygame.sprite.Sprite):
     def __init__(self, image_path, owner):
@@ -234,8 +226,9 @@ class Weapon(pygame.sprite.Sprite):
         while True:
             self.rect.x = random.randrange(1920)
             self.rect.y = random.randrange(1080)
-            if not any(pygame.sprite.collide_rect(self, sprite) for sprite in weapons if
-                       sprite != self) and not pygame.sprite.spritecollideany(self, walls):
+            if (not any(pygame.sprite.collide_rect(self, sprite) for sprite in weapons if
+                        sprite != self) and not pygame.sprite.spritecollideany(self, walls)
+                    and not pygame.sprite.spritecollideany(self, iron_box)):
                 break
 
     def update(self, target):
@@ -296,8 +289,9 @@ class Armor(pygame.sprite.Sprite):
         while True:
             self.rect.x = random.randrange(1920)
             self.rect.y = random.randrange(1080)
-            if not any(pygame.sprite.collide_rect(self, sprite) for sprite in protection if
-                       sprite != self) and not pygame.sprite.spritecollideany(self, walls):
+            if (not any(pygame.sprite.collide_rect(self, sprite) for sprite in protection if
+                        sprite != self) and not pygame.sprite.spritecollideany(self, walls)
+                    and not pygame.sprite.spritecollideany(self, iron_box)):
                 break
 
     def update(self):
@@ -372,10 +366,10 @@ class Box(pygame.sprite.Sprite):
         self.hp = 50
 
     def update(self):
-        print(self.hp)
-        if self.hp <= 0:
-            print('KILl')
-            walls.remove(self)
+        box_box = pygame.sprite.spritecollide(self, walls, False)
+        if box_box is not None:
+            for i in box_box:
+                i.correct_position(self)
 
     def correct_position(self, object):
         if pygame.sprite.collide_rect(self, object):
@@ -392,6 +386,15 @@ class Box(pygame.sprite.Sprite):
                     normal_y = dy / distance
                 self.rect.x -= normal_x * overlap / 2
                 self.rect.y -= normal_y * overlap / 2
+
+
+class Iron_box(pygame.sprite.Sprite):
+    def __init__(self, x, y, surface):
+        super().__init__(iron_box)
+        self.image = tile_images[surface]
+        self.image = pygame.transform.scale(self.image, (100, 100))
+        self.rect = self.image.get_rect().move(
+            tile_width * x, tile_height * y)
 
 
 class Grass(pygame.sprite.Sprite):
@@ -418,7 +421,8 @@ def load_level(filename):
 
 tile_images = {
     'wall': load_image('box.png'),
-    'empty': load_image('grass.png')
+    'empty': load_image('grass.png'),
+    'iron_box': load_image('iron_box.png')
 }
 tile_width = tile_height = 100
 
@@ -427,9 +431,10 @@ def tile(tile_type, pos_x, pos_y):
     if tile_type == 'wall':
         Grass(pos_x, pos_y, 'empty')
         Box(pos_x, pos_y, tile_type)
-    else:
+    elif tile_type == 'empty':
         Grass(pos_x, pos_y, tile_type)
-        pass
+    else:
+        Iron_box(pos_x, pos_y, tile_type)
 
 
 def generate_level(level):
@@ -444,6 +449,8 @@ def generate_level(level):
             elif level[y][x] == '@':
                 tile('empty', x, y)
                 # new_player = Ball(20, 955, 150, 'first_player')
+            elif level[y][x] == '^':
+                tile('iron_box', x, y)
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
@@ -452,7 +459,7 @@ MAX_WEAPONS = 5
 player, level_x, level_y = generate_level(load_level('map.txt'))
 
 last_spawn_time = 0
-spawn_interval = 5000
+spawn_interval = 1000
 rad = 20
 fps = 60
 first_player = Player(rad, 960, 150, 'first_player')
@@ -521,7 +528,7 @@ while running:
                         protection.remove(armor)
                         break
     if current_time - last_spawn_time >= spawn_interval:
-        if len(weapons) < MAX_WEAPONS:  # MAX_WEAPONS — максимальное количество оружия
+        if len(weapons) <= MAX_WEAPONS:  # MAX_WEAPONS — максимальное количество оружия
             new_weapon = Weapon('m41.jpg', None)
             new_armor = Armor('armor_first.jpg', None)
             new_armor.spawn_armor()
@@ -533,13 +540,19 @@ while running:
     screen.fill("black")
     all_sprites.update(keys)
 
-    box_first_player = pygame.sprite.spritecollideany(first_player, walls)
+    box_first_player = pygame.sprite.spritecollide(first_player, walls, False)
     if box_first_player is not None:
-        print(1)
-        box_first_player.correct_position(first_player)
-    # second_player.correct_position(first_player)
+        for i in box_first_player:
+            i.correct_position(first_player)
+            i.update()
+    box_second_player = pygame.sprite.spritecollide(second_player, walls, False)
+    if box_second_player is not None:
+        for i in box_second_player:
+            i.correct_position(second_player)
+            i.update()
 
     floor.draw(screen)
+    iron_box.draw(screen)
     walls.draw(screen)
     all_sprites.draw(screen)
     protection.draw(screen)
