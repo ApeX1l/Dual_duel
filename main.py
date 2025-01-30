@@ -63,6 +63,12 @@ class Bullet(pygame.sprite.Sprite):
     def update(self, *args):
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
+        box = pygame.sprite.spritecollideany(self, walls)
+        if box is not None:
+            box.hp -= 10
+            create_particles((box.rect.centerx, box.rect.centery), box)
+            box.update()
+            self.kill()
 
         for i in players:
             if i != self.owner:
@@ -81,6 +87,7 @@ class Bullet(pygame.sprite.Sprite):
                         create_particles((i.rect.centerx, i.rect.centery), i.armor)
                         self.kill()
                         break
+
         if not self.rect.colliderect(screen_rect):
             self.kill()
 
@@ -125,30 +132,46 @@ class Player(pygame.sprite.Sprite):
             if keys[pygame.K_w]:
                 self.rect.y -= self.v / fps
                 self.current_animation = 'up'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                    self.rect.y += self.v / fps
             elif keys[pygame.K_s]:
                 self.rect.y += self.v / fps
                 self.current_animation = 'down'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                    self.rect.y -= self.v / fps
             elif keys[pygame.K_a]:
                 self.rect.x -= self.v / fps
                 self.current_animation = 'left'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                    self.rect.x += self.v / fps
             elif keys[pygame.K_d]:
                 self.rect.x += self.v / fps
                 self.current_animation = 'right'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, second_player):
+                    self.rect.x -= self.v / fps
             else:
                 flag = True
         else:
             if keys[pygame.K_UP]:
                 self.rect.y -= self.v / fps
                 self.current_animation = 'up'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                    self.rect.y += self.v / fps
             elif keys[pygame.K_DOWN]:
                 self.rect.y += self.v / fps
                 self.current_animation = 'down'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                    self.rect.y -= self.v / fps
             elif keys[pygame.K_LEFT]:
                 self.rect.x -= self.v / fps
                 self.current_animation = 'left'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                    self.rect.x += self.v / fps
             elif keys[pygame.K_RIGHT]:
                 self.rect.x += self.v / fps
                 self.current_animation = 'right'
+                if pygame.sprite.spritecollideany(self, walls) or pygame.sprite.collide_mask(self, first_player):
+                    self.rect.x -= self.v / fps
             else:
                 flag = True
         if self.hp <= 0:
@@ -296,7 +319,6 @@ class Wall(pygame.sprite.Sprite):
 
 
 class Particle(pygame.sprite.Sprite):
-
     def __init__(self, pos, dx, dy, surface):
         super().__init__(all_sprites)
         part = pygame.Surface([3, 3])
@@ -349,6 +371,28 @@ class Box(pygame.sprite.Sprite):
             tile_width * x, tile_height * y)
         self.hp = 50
 
+    def update(self):
+        print(self.hp)
+        if self.hp <= 0:
+            print('KILl')
+            walls.remove(self)
+
+    def correct_position(self, object):
+        if pygame.sprite.collide_rect(self, object):
+            dx = object.rect.centerx - self.rect.centerx
+            dy = object.rect.centery - self.rect.centery
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            min_distance = (self.rect.width / 2) + (object.rect.width / 2)
+            if distance < min_distance:
+                overlap = min_distance - distance
+                normal_x = 0
+                normal_y = 0
+                if distance != 0:
+                    normal_x = dx / distance
+                    normal_y = dy / distance
+                self.rect.x -= normal_x * overlap / 2
+                self.rect.y -= normal_y * overlap / 2
+
 
 class Grass(pygame.sprite.Sprite):
     def __init__(self, x, y, surface):
@@ -381,6 +425,7 @@ tile_width = tile_height = 100
 
 def tile(tile_type, pos_x, pos_y):
     if tile_type == 'wall':
+        Grass(pos_x, pos_y, 'empty')
         Box(pos_x, pos_y, tile_type)
     else:
         Grass(pos_x, pos_y, tile_type)
@@ -403,18 +448,15 @@ def generate_level(level):
     return new_player, x, y
 
 
+MAX_WEAPONS = 5
 player, level_x, level_y = generate_level(load_level('map.txt'))
 
-# Wall(0, 0, width, 1)
-# Wall(0, 0, 1, height)
-# Wall(0, height - 1, width, 1)
-# Wall(width - 1, 0, 1, height)
 last_spawn_time = 0
 spawn_interval = 5000
 rad = 20
 fps = 60
-first_player = Player(rad, 960, 100, 'first_player')
-second_player = Player(rad, 960, 980, 'first_player')
+first_player = Player(rad, 960, 150, 'first_player')
+second_player = Player(rad, 960, 930, 'first_player')
 running = True
 clock = pygame.time.Clock()
 while running:
@@ -479,19 +521,23 @@ while running:
                         protection.remove(armor)
                         break
     if current_time - last_spawn_time >= spawn_interval:
-        new_weapon = Weapon('m41.jpg', None)
-        new_armor = Armor('armor_first.jpg', None)
-        new_armor.spawn_armor()
-        new_weapon.spawn_weapon()
-        protection.add(new_armor)
-        weapons.add(new_weapon)
-        last_spawn_time = current_time
+        if len(weapons) < MAX_WEAPONS:  # MAX_WEAPONS — максимальное количество оружия
+            new_weapon = Weapon('m41.jpg', None)
+            new_armor = Armor('armor_first.jpg', None)
+            new_armor.spawn_armor()
+            new_weapon.spawn_weapon()
+            protection.add(new_armor)
+            weapons.add(new_weapon)
+            last_spawn_time = current_time
 
     screen.fill("black")
     all_sprites.update(keys)
 
-    first_player.correct_position(second_player)
-    second_player.correct_position(first_player)
+    box_first_player = pygame.sprite.spritecollideany(first_player, walls)
+    if box_first_player is not None:
+        print(1)
+        box_first_player.correct_position(first_player)
+    # second_player.correct_position(first_player)
 
     floor.draw(screen)
     walls.draw(screen)
