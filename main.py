@@ -5,6 +5,8 @@ import sys
 import pygame
 
 pygame.init()
+fps = 60
+clock = pygame.time.Clock()
 size = width, height = 1920, 1080
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
@@ -16,6 +18,9 @@ floor = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 screen_rect = (0, 0, width, height)
+
+sound_walking_iron = pygame.mixer.Sound('sounds\\walking_on_iron.wav')
+sound_walking_iron.set_volume(0.2)
 
 sound_shoot = pygame.mixer.Sound('sounds\\shot_m4.wav')
 sound_change_weapon = pygame.mixer.Sound('sounds\\change_weapon.wav')
@@ -47,17 +52,79 @@ def load_image(name, path='data', colorkey=None):
     return image
 
 
+font = pygame.font.Font(None, 50)
+
+
+def draw_button(surface, rect, color, hover_color, text, text_color):
+    mouse_pos = pygame.mouse.get_pos()
+    is_hovered = rect.collidepoint(mouse_pos)
+
+    shadow_rect = rect.move(5, 5)
+    pygame.draw.rect(surface, (0, 0, 0, 100), shadow_rect, border_radius=20)
+
+    button_color = hover_color if is_hovered else color
+    pygame.draw.rect(surface, button_color, rect, border_radius=20)
+    draw_text(text, font, text_color, surface, rect.centerx, rect.centery)
+
+    return is_hovered
+
+
+def draw_text(text, font, color, surface, x, y):
+    text_obj = font.render(text, True, color)
+    text_rect = text_obj.get_rect(center=(x, y))
+    surface.blit(text_obj, text_rect)
+
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+
+def start_screen():
+    pygame.mixer.music.load('music\\main_menu.wav')
+    pygame.mixer.music.play()
+
+    fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (1920, 1080))
+    screen.blit(fon, (0, 0))
+
+    button_width, button_height = 200, 50
+    start_button = pygame.Rect(1920 // 2 - button_width // 2, 400, button_width, button_height)
+    settings_button = pygame.Rect(1920 // 2 - button_width // 2, 500, button_width, button_height)
+    exit_button = pygame.Rect(1920 // 2 - button_width // 2, 600, button_width, button_height)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if start_button.collidepoint(event.pos):
+                    pygame.mixer.music.stop()
+                    return "start"
+                elif settings_button.collidepoint(event.pos):
+                    return "settings"
+                elif exit_button.collidepoint(event.pos):
+                    pygame.quit()
+                    sys.exit()
+
+        # Отрисовка кнопок
+        draw_button(screen, start_button, (200, 0, 0), (255, 0, 0), "Начать игру", (0, 0, 0))
+        draw_button(screen, settings_button, (200, 0, 0), (255, 0, 0), "Настройки", (0, 0, 0))
+        draw_button(screen, exit_button, (200, 0, 0), (255, 0, 0), "Выход", (0, 0, 0))
+        pygame.display.flip()
+        clock.tick(fps)
+
+
 class Bullet(pygame.sprite.Sprite):
     image = load_image("bullet.png", colorkey=-1)
     image = pygame.transform.scale(image, (50, 50))
 
-    def __init__(self, pos, target_pos, owner, weapon):
+    def __init__(self, pos, target_pos, owner):
         super().__init__(all_sprites)
         self.image = Bullet.image
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect(center=pos)
         self.owner = owner
-        self.weapon = weapon
         self.v = 1000
         dx = target_pos[0] - pos[0]
         dy = target_pos[1] - pos[1]
@@ -119,7 +186,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, radius, x, y, player_folder):
         super().__init__(all_sprites, players)
         self.radius = radius
-
+        self.last_step_time = 0
         self.player_folder = player_folder
         self.animations = {}
         self.load_animations()
@@ -151,6 +218,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, keys):
         flag = False
+        current_time = pygame.time.get_ticks()
         if self == first_player:
             if keys[pygame.K_w]:
                 self.rect.y -= self.v / fps
@@ -197,7 +265,12 @@ class Player(pygame.sprite.Sprite):
                     self.rect.x -= self.v / fps
             else:
                 flag = True
+        if not flag and current_time - self.last_step_time > 500:  # 500 мс = 0.5 секунды
+            sound_walking_iron.play()
+
+            self.last_step_time = current_time
         if self.hp <= 0:
+            self.weapon = None
             self.kill()
             sound_death.play()
 
@@ -281,7 +354,7 @@ class Weapon(pygame.sprite.Sprite):
         if self.fire_timer == 0 and self.ammo > 0:
             bullet_start_pos = self.get_barrel_position()
             target = second_player if self.owner == first_player else first_player
-            bullet = Bullet(bullet_start_pos, target.rect.center, self.owner, self)
+            bullet = Bullet(bullet_start_pos, target.rect.center, self.owner)
             bullets.add(bullet)
             sound_shoot.play()
             self.fire_timer = 10
@@ -490,11 +563,10 @@ player, level_x, level_y = generate_level(load_level('map.txt'))
 last_spawn_time = 0
 spawn_interval = 1000
 rad = 20
-fps = 60
 first_player = Player(rad, 960, 150, 'first_player')
 second_player = Player(rad, 960, 930, 'first_player')
 running = True
-clock = pygame.time.Clock()
+start_screen()
 while running:
     current_time = pygame.time.get_ticks()
     keys = pygame.key.get_pressed()
@@ -577,17 +649,15 @@ while running:
 
     screen.fill("black")
     all_sprites.update(keys)
-
     box_first_player = pygame.sprite.spritecollide(first_player, walls, False)
     if box_first_player is not None:
         for i in box_first_player:
             i.correct_position(first_player)
-            i.update()
     box_second_player = pygame.sprite.spritecollide(second_player, walls, False)
     if box_second_player is not None:
         for i in box_second_player:
             i.correct_position(second_player)
-            i.update()
+    walls.update()
     floor.draw(screen)
     iron_box.draw(screen)
     walls.draw(screen)
