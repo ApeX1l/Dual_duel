@@ -4,10 +4,15 @@ import random
 import sys
 import pygame
 
+with open('settings', 'w') as f:
+    f.write('1 1' + '\n')
+    f.write('w a s d e space' + '\n')
+    f.write('up left down right num0 rctrl')
 pygame.init()
 fps = 60
 clock = pygame.time.Clock()
 size = width, height = 1920, 1080
+button_width, button_height = 200, 50
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
 weapons = pygame.sprite.Group()
@@ -20,7 +25,7 @@ bullets = pygame.sprite.Group()
 screen_rect = (0, 0, width, height)
 
 sound_walking_iron = pygame.mixer.Sound('sounds\\walking_on_iron.wav')
-sound_walking_iron.set_volume(0.2)
+sound_button = pygame.mixer.Sound('sounds\\button_sound.wav')
 
 sound_shoot = pygame.mixer.Sound('sounds\\shot_m4.wav')
 sound_change_weapon = pygame.mixer.Sound('sounds\\change_weapon.wav')
@@ -34,6 +39,9 @@ sound_injury3 = pygame.mixer.Sound('sounds\\injury_people3.wav')
 sound_injury4 = pygame.mixer.Sound('sounds\\injury_people4.wav')
 sound_death = pygame.mixer.Sound('sounds\\death_people.wav')
 sound_injury = [sound_injury1, sound_injury2, sound_injury3, sound_injury4]
+all_sounds = [sound_walking_iron, sound_shoot, sound_change_weapon, sound_no_ammo, sound_change_armor,
+              sound_shoot_armor,
+              sound_injury1, sound_injury2, sound_injury3, sound_injury4, sound_death, sound_button]
 
 
 def load_image(name, path='data', colorkey=None):
@@ -53,26 +61,56 @@ def load_image(name, path='data', colorkey=None):
 
 
 font = pygame.font.Font(None, 50)
+font_side = pygame.font.Font(None, 52)
 
 
 def draw_button(surface, rect, color, hover_color, text, text_color):
     mouse_pos = pygame.mouse.get_pos()
     is_hovered = rect.collidepoint(mouse_pos)
-
     shadow_rect = rect.move(5, 5)
     pygame.draw.rect(surface, (0, 0, 0, 100), shadow_rect, border_radius=20)
-
     button_color = hover_color if is_hovered else color
     pygame.draw.rect(surface, button_color, rect, border_radius=20)
     draw_text(text, font, text_color, surface, rect.centerx, rect.centery)
-
     return is_hovered
 
 
-def draw_text(text, font, color, surface, x, y):
+def draw_text(text, font, color, surface, x, y, second=False):
+    if second:
+        text_obj = font_side.render(text, True, 'red')
+        text_rect = text_obj.get_rect(center=(x, y))
+        surface.blit(text_obj, text_rect)
     text_obj = font.render(text, True, color)
     text_rect = text_obj.get_rect(center=(x, y))
     surface.blit(text_obj, text_rect)
+
+
+def draw_slider(surface, rect, color, hover_color, value, is_dragging):
+    mouse_pos = pygame.mouse.get_pos()
+    is_hovered = rect.collidepoint(mouse_pos)
+
+    # Изменение цвета слайдера при наведении
+    slider_color = hover_color if is_hovered else color
+
+    # Рисуем слайдер
+    pygame.draw.rect(surface, slider_color, rect, border_radius=10)
+
+    # Положение ползунка
+    indicator_x = rect.x + int(value * rect.width)
+    indicator_y = rect.centery
+
+    pygame.draw.line(surface, 'black', (1920 // 2 - 100, 295 + button_height // 2),
+                     (1920 // 2 + 100, 295 + button_height // 2), 3)  # sound
+    pygame.draw.line(surface, 'black', (1920 // 2 - 100, 395 + button_height // 2),
+                     (1920 // 2 + 100, 395 + button_height // 2), 3)
+    pygame.draw.circle(surface, 'black', (indicator_x, indicator_y), 14)
+    pygame.draw.circle(surface, 'white', (indicator_x, indicator_y), 15, 1)
+
+    if is_dragging:
+        new_value = (mouse_pos[0] - rect.x) / rect.width
+        new_value = max(0, min(1, new_value))
+        return new_value
+    return value
 
 
 def terminate():
@@ -82,12 +120,9 @@ def terminate():
 
 def start_screen():
     pygame.mixer.music.load('music\\main_menu.wav')
-    pygame.mixer.music.play()
+    pygame.mixer.music.set_volume(1)
+    pygame.mixer.music.play(-1)
 
-    fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (1920, 1080))
-    screen.blit(fon, (0, 0))
-
-    button_width, button_height = 200, 50
     start_button = pygame.Rect(1920 // 2 - button_width // 2, 400, button_width, button_height)
     settings_button = pygame.Rect(1920 // 2 - button_width // 2, 500, button_width, button_height)
     exit_button = pygame.Rect(1920 // 2 - button_width // 2, 600, button_width, button_height)
@@ -99,20 +134,103 @@ def start_screen():
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
+                    sound_button.play()
                     pygame.mixer.music.stop()
                     return "start"
                 elif settings_button.collidepoint(event.pos):
-                    return "settings"
+                    sound_button.play()
+                    settings()
                 elif exit_button.collidepoint(event.pos):
+                    sound_button.play()
                     pygame.quit()
                     sys.exit()
-
-        # Отрисовка кнопок
+        fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (1920, 1080))
+        screen.blit(fon, (0, 0))
         draw_button(screen, start_button, (200, 0, 0), (255, 0, 0), "Начать игру", (0, 0, 0))
         draw_button(screen, settings_button, (200, 0, 0), (255, 0, 0), "Настройки", (0, 0, 0))
         draw_button(screen, exit_button, (200, 0, 0), (255, 0, 0), "Выход", (0, 0, 0))
         pygame.display.flip()
         clock.tick(fps)
+
+
+def settings():
+    slider_sound = pygame.Rect(1920 // 2 - 100, 295, button_width, button_height)
+    slider_music = pygame.Rect(1920 // 2 - 100, 395, button_width, button_height)
+    button_back = pygame.Rect(1920 // 2 - 50, 900, button_width, button_height)
+
+    button_first_forward = pygame.Rect(1920 // 2 - 275, 575, button_width * 1.5, button_height * 0.6)
+    button_first_left = pygame.Rect(1920 // 2 - 275, 625, button_width * 1.5, button_height * 0.6)
+    button_first_back = pygame.Rect(1920 // 2 - 275, 675, button_width * 1.5, button_height * 0.6)
+    button_first_right = pygame.Rect(1920 // 2 - 275, 725, button_width * 1.5, button_height * 0.6)
+    button_first_action = pygame.Rect(1920 // 2 - 275, 775, button_width * 1.5, button_height * 0.6)
+    button_first_shoot = pygame.Rect(1920 // 2 - 275, 825, button_width * 1.5, button_height * 0.6)
+
+    button_second_forward = pygame.Rect(1920 // 2 + 50, 575, button_width * 1.5, button_height * 0.6)
+    button_second_left = pygame.Rect(1920 // 2 + 50, 625, button_width * 1.5, button_height * 0.6)
+    button_second_back = pygame.Rect(1920 // 2 + 50, 675, button_width * 1.5, button_height * 0.6)
+    button_second_right = pygame.Rect(1920 // 2 + 50, 725, button_width * 1.5, button_height * 0.6)
+    button_second_action = pygame.Rect(1920 // 2 + 50, 775, button_width * 1.5, button_height * 0.6)
+    button_second_shoot = pygame.Rect(1920 // 2 + 50, 825, button_width * 1.5, button_height * 0.6)
+
+    music_value = 1
+    sound_value = 1
+    music_dragging = False
+    sound_dragging = False
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if slider_sound.collidepoint(event.pos):
+                    sound_dragging = True
+                elif slider_music.collidepoint(event.pos):
+                    music_dragging = True
+                elif button_back.collidepoint(event.pos):
+                    sound_button.play()
+                    return
+            elif event.type == pygame.MOUSEBUTTONUP:
+                music_dragging = False
+                sound_dragging = False
+            elif event.type == pygame.MOUSEMOTION:
+                if music_dragging:
+                    music_value = (event.pos[0] - slider_music.x) / slider_music.width
+                    music_value = max(0, min(1, music_value))
+                    pygame.mixer.music.set_volume(music_value)
+                elif sound_dragging:
+                    sound_value = (event.pos[0] - slider_music.x) / slider_music.width
+                    sound_value = max(0, min(1, sound_value))
+                    for sound in all_sounds:
+                        sound.set_volume(sound_value)
+        fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (1920, 1080))
+        screen.blit(fon, (0, 0))
+
+        draw_slider(screen, slider_sound, (200, 0, 0), (255, 0, 0), sound_value, sound_dragging)
+        draw_slider(screen, slider_music, (200, 0, 0), (255, 0, 0), music_value, music_dragging)
+
+        draw_text('Звуки:', font, 'black', screen, 1920 // 2, 270)
+        draw_text('Музыка:', font, 'black', screen, 1920 // 2, 370)
+
+        draw_text('Управление', font, 'black', screen, 1920 // 2, 475, True)
+        draw_text('Первый игрок', font, 'black', screen, 1920 // 2 - 125, 525, True)
+        draw_text('Второй игрок', font, 'black', screen, 1920 // 2 + 175, 525, True)
+
+        draw_button(screen, button_back, (200, 0, 0), (255, 0, 0), "Назад", (0, 0, 0))
+
+        draw_button(screen, button_first_forward, (200, 0, 0), (255, 0, 0), "Вперед - W", (0, 0, 0))
+        draw_button(screen, button_first_left, (200, 0, 0), (255, 0, 0), "Налево - A", (0, 0, 0))
+        draw_button(screen, button_first_back, (200, 0, 0), (255, 0, 0), "Назад - S", (0, 0, 0))
+        draw_button(screen, button_first_right, (200, 0, 0), (255, 0, 0), "Направо - D", (0, 0, 0))
+        draw_button(screen, button_first_action, (200, 0, 0), (255, 0, 0), "Действие - E", (0, 0, 0))
+        draw_button(screen, button_first_shoot, (200, 0, 0), (255, 0, 0), "Стрельба- SPACE", (0, 0, 0))
+
+        draw_button(screen, button_second_forward, (200, 0, 0), (255, 0, 0), "Вперед - стр.вврх", (0, 0, 0))
+        draw_button(screen, button_second_left, (200, 0, 0), (255, 0, 0), "Налево - стр.влево", (0, 0, 0))
+        draw_button(screen, button_second_back, (200, 0, 0), (255, 0, 0), "Назад - стр.вниз", (0, 0, 0))
+        draw_button(screen, button_second_right, (200, 0, 0), (255, 0, 0), "Направо - стр.впр", (0, 0, 0))
+        draw_button(screen, button_second_action, (200, 0, 0), (255, 0, 0), "Действие - NUM0", (0, 0, 0))
+        draw_button(screen, button_second_shoot, (200, 0, 0), (255, 0, 0), "Стрельба- RCTRL", (0, 0, 0))
+        pygame.display.flip()
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -574,6 +692,8 @@ while running:
         first_player.weapon.shoot()
     if keys[pygame.K_KP0] and second_player.weapon:
         second_player.weapon.shoot()
+    if keys[pygame.K_ESCAPE]:
+        settings()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
