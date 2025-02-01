@@ -4,14 +4,16 @@ import random
 import sys
 import pygame
 
-with open('settings', 'w') as f:
-    f.write('1 1' + '\n')
-    f.write('w a s d e space' + '\n')
-    f.write('up left down right num0 rctrl')
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (200, 0, 0)
+LIGHT_RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+
 pygame.init()
 fps = 60
 clock = pygame.time.Clock()
-size = width, height = 1920, 1080
+size = WIDTH, HEIGHT = 1920, 1080
 button_width, button_height = 200, 50
 screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
@@ -22,7 +24,7 @@ iron_box = pygame.sprite.Group()
 floor = pygame.sprite.Group()
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
-screen_rect = (0, 0, width, height)
+screen_rect = (0, 0, WIDTH, HEIGHT)
 
 sound_walking_iron = pygame.mixer.Sound('sounds\\walking_on_iron.wav')
 sound_button = pygame.mixer.Sound('sounds\\button_sound.wav')
@@ -99,10 +101,10 @@ def draw_slider(surface, rect, color, hover_color, value, is_dragging):
     indicator_x = rect.x + int(value * rect.width)
     indicator_y = rect.centery
 
-    pygame.draw.line(surface, 'black', (1920 // 2 - 100, 295 + button_height // 2),
-                     (1920 // 2 + 100, 295 + button_height // 2), 3)  # sound
-    pygame.draw.line(surface, 'black', (1920 // 2 - 100, 395 + button_height // 2),
-                     (1920 // 2 + 100, 395 + button_height // 2), 3)
+    pygame.draw.line(surface, 'black', (1920 // 2 - 100, 280 + button_height // 2),
+                     (1920 // 2 + 100, 280 + button_height // 2), 3)  # sound
+    pygame.draw.line(surface, 'black', (1920 // 2 - 100, 380 + button_height // 2),
+                     (1920 // 2 + 100, 380 + button_height // 2), 3)
     pygame.draw.circle(surface, 'black', (indicator_x, indicator_y), 14)
     pygame.draw.circle(surface, 'white', (indicator_x, indicator_y), 15, 1)
 
@@ -153,29 +155,41 @@ def start_screen():
         clock.tick(fps)
 
 
+def get_key_name(key_code):
+    key_name = pygame.key.name(key_code)
+    return f"pygame.K_{key_name.upper()}"
+
+
 def settings():
-    slider_sound = pygame.Rect(1920 // 2 - 100, 295, button_width, button_height)
-    slider_music = pygame.Rect(1920 // 2 - 100, 395, button_width, button_height)
-    button_back = pygame.Rect(1920 // 2 - 50, 900, button_width, button_height)
+    settings_data = load_settings()
+    sound_value = settings_data["sound_value"]
+    music_value = settings_data["music_value"]
+    key_bindings = settings_data["key_bindings"]
 
-    button_first_forward = pygame.Rect(1920 // 2 - 275, 575, button_width * 1.5, button_height * 0.6)
-    button_first_left = pygame.Rect(1920 // 2 - 275, 625, button_width * 1.5, button_height * 0.6)
-    button_first_back = pygame.Rect(1920 // 2 - 275, 675, button_width * 1.5, button_height * 0.6)
-    button_first_right = pygame.Rect(1920 // 2 - 275, 725, button_width * 1.5, button_height * 0.6)
-    button_first_action = pygame.Rect(1920 // 2 - 275, 775, button_width * 1.5, button_height * 0.6)
-    button_first_shoot = pygame.Rect(1920 // 2 - 275, 825, button_width * 1.5, button_height * 0.6)
+    slider_sound = pygame.Rect(WIDTH // 2 - 100, 295, 200, 20)
+    slider_music = pygame.Rect(WIDTH // 2 - 100, 395, 200, 20)
 
-    button_second_forward = pygame.Rect(1920 // 2 + 50, 575, button_width * 1.5, button_height * 0.6)
-    button_second_left = pygame.Rect(1920 // 2 + 50, 625, button_width * 1.5, button_height * 0.6)
-    button_second_back = pygame.Rect(1920 // 2 + 50, 675, button_width * 1.5, button_height * 0.6)
-    button_second_right = pygame.Rect(1920 // 2 + 50, 725, button_width * 1.5, button_height * 0.6)
-    button_second_action = pygame.Rect(1920 // 2 + 50, 775, button_width * 1.5, button_height * 0.6)
-    button_second_shoot = pygame.Rect(1920 // 2 + 50, 825, button_width * 1.5, button_height * 0.6)
+    buttons = {
+        "back": pygame.Rect(WIDTH // 2 - 50, 900, 200, 50),
+        "first_forward": pygame.Rect(WIDTH // 2 - 600, 575, 600, 30),
+        "first_left": pygame.Rect(WIDTH // 2 - 600, 625, 600, 30),
+        "first_back": pygame.Rect(WIDTH // 2 - 600, 675, 600, 30),
+        "first_right": pygame.Rect(WIDTH // 2 - 600, 725, 600, 30),
+        "first_action": pygame.Rect(WIDTH // 2 - 600, 775, 600, 30),
+        "first_shoot": pygame.Rect(WIDTH // 2 - 600, 825, 600, 30),
+        "second_forward": pygame.Rect(WIDTH // 2 + 50, 575, 600, 30),
+        "second_left": pygame.Rect(WIDTH // 2 + 50, 625, 600, 30),
+        "second_back": pygame.Rect(WIDTH // 2 + 50, 675, 600, 30),
+        "second_right": pygame.Rect(WIDTH // 2 + 50, 725, 600, 30),
+        "second_action": pygame.Rect(WIDTH // 2 + 50, 775, 600, 30),
+        "second_shoot": pygame.Rect(WIDTH // 2 + 50, 825, 600, 30),
+    }
 
-    music_value = 1
-    sound_value = 1
     music_dragging = False
     sound_dragging = False
+
+    active_button = None
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -186,8 +200,16 @@ def settings():
                     sound_dragging = True
                 elif slider_music.collidepoint(event.pos):
                     music_dragging = True
-                elif button_back.collidepoint(event.pos):
+                for button_name, button_rect in buttons.items():
+                    if button_rect.collidepoint(event.pos) and button_name != "back":
+                        active_button = button_name
+                if buttons["back"].collidepoint(event.pos):
                     sound_button.play()
+                    save_settings({
+                        "sound_value": sound_value,
+                        "music_value": music_value,
+                        "key_bindings": key_bindings,
+                    })
                     return
             elif event.type == pygame.MOUSEBUTTONUP:
                 music_dragging = False
@@ -198,39 +220,99 @@ def settings():
                     music_value = max(0, min(1, music_value))
                     pygame.mixer.music.set_volume(music_value)
                 elif sound_dragging:
-                    sound_value = (event.pos[0] - slider_music.x) / slider_music.width
+                    sound_value = (event.pos[0] - slider_sound.x) / slider_sound.width
                     sound_value = max(0, min(1, sound_value))
                     for sound in all_sounds:
                         sound.set_volume(sound_value)
-        fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (1920, 1080))
+            elif event.type == pygame.KEYDOWN and active_button:
+                key_bindings[active_button] = event.key
+                active_button = None
+
+        fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
 
-        draw_slider(screen, slider_sound, (200, 0, 0), (255, 0, 0), sound_value, sound_dragging)
-        draw_slider(screen, slider_music, (200, 0, 0), (255, 0, 0), music_value, music_dragging)
+        draw_slider(screen, slider_sound, RED, LIGHT_RED, sound_value, sound_dragging)
+        draw_slider(screen, slider_music, RED, LIGHT_RED, music_value, music_dragging)
 
-        draw_text('Звуки:', font, 'black', screen, 1920 // 2, 270)
-        draw_text('Музыка:', font, 'black', screen, 1920 // 2, 370)
+        draw_text('Звуки:', font, BLACK, screen, WIDTH // 2, 270, True)
+        draw_text('Музыка:', font, BLACK, screen, WIDTH // 2, 370, True)
+        draw_text('Управление', font, BLACK, screen, WIDTH // 2, 475, True)
+        draw_text('Первый игрок', font, BLACK, screen, WIDTH // 2 - 300, 525, True)
+        draw_text('Второй игрок', font, BLACK, screen, WIDTH // 2 + 300, 525, True)
 
-        draw_text('Управление', font, 'black', screen, 1920 // 2, 475, True)
-        draw_text('Первый игрок', font, 'black', screen, 1920 // 2 - 125, 525, True)
-        draw_text('Второй игрок', font, 'black', screen, 1920 // 2 + 175, 525, True)
+        draw_button(screen, buttons["back"], RED, LIGHT_RED, "Назад", BLACK)
 
-        draw_button(screen, button_back, (200, 0, 0), (255, 0, 0), "Назад", (0, 0, 0))
+        draw_button(screen, buttons["first_forward"], RED, LIGHT_RED,
+                    f"Вперед - {get_key_name(key_bindings['first_forward'])}", BLACK)
+        draw_button(screen, buttons["first_left"], RED, LIGHT_RED,
+                    f"Налево - {get_key_name(key_bindings['first_left'])}", BLACK)
+        draw_button(screen, buttons["first_back"], RED, LIGHT_RED,
+                    f"Назад - {get_key_name(key_bindings['first_back'])}", BLACK)
+        draw_button(screen, buttons["first_right"], RED, LIGHT_RED,
+                    f"Направо - {get_key_name(key_bindings['first_right'])}", BLACK)
+        draw_button(screen, buttons["first_action"], RED, LIGHT_RED,
+                    f"Действие - {get_key_name(key_bindings['first_action'])}", BLACK)
+        draw_button(screen, buttons["first_shoot"], RED, LIGHT_RED,
+                    f"Стрельба - {get_key_name(key_bindings['first_shoot'])}", BLACK)
 
-        draw_button(screen, button_first_forward, (200, 0, 0), (255, 0, 0), "Вперед - W", (0, 0, 0))
-        draw_button(screen, button_first_left, (200, 0, 0), (255, 0, 0), "Налево - A", (0, 0, 0))
-        draw_button(screen, button_first_back, (200, 0, 0), (255, 0, 0), "Назад - S", (0, 0, 0))
-        draw_button(screen, button_first_right, (200, 0, 0), (255, 0, 0), "Направо - D", (0, 0, 0))
-        draw_button(screen, button_first_action, (200, 0, 0), (255, 0, 0), "Действие - E", (0, 0, 0))
-        draw_button(screen, button_first_shoot, (200, 0, 0), (255, 0, 0), "Стрельба- SPACE", (0, 0, 0))
+        draw_button(screen, buttons["second_forward"], RED, LIGHT_RED,
+                    f"Вперед - {get_key_name(key_bindings['second_forward'])}", BLACK)
+        draw_button(screen, buttons["second_left"], RED, LIGHT_RED,
+                    f"Налево - {get_key_name(key_bindings['second_left'])}", BLACK)
+        draw_button(screen, buttons["second_back"], RED, LIGHT_RED,
+                    f"Назад - {get_key_name(key_bindings['second_back'])}", BLACK)
+        draw_button(screen, buttons["second_right"], RED, LIGHT_RED,
+                    f"Направо - {get_key_name(key_bindings['second_right'])}", BLACK)
+        draw_button(screen, buttons["second_action"], RED, LIGHT_RED,
+                    f"Действие - {get_key_name(key_bindings['second_action'])}", BLACK)
+        draw_button(screen, buttons["second_shoot"], RED, LIGHT_RED,
+                    f"Стрельба - {get_key_name(key_bindings['second_shoot'])}", BLACK)
 
-        draw_button(screen, button_second_forward, (200, 0, 0), (255, 0, 0), "Вперед - стр.вврх", (0, 0, 0))
-        draw_button(screen, button_second_left, (200, 0, 0), (255, 0, 0), "Налево - стр.влево", (0, 0, 0))
-        draw_button(screen, button_second_back, (200, 0, 0), (255, 0, 0), "Назад - стр.вниз", (0, 0, 0))
-        draw_button(screen, button_second_right, (200, 0, 0), (255, 0, 0), "Направо - стр.впр", (0, 0, 0))
-        draw_button(screen, button_second_action, (200, 0, 0), (255, 0, 0), "Действие - NUM0", (0, 0, 0))
-        draw_button(screen, button_second_shoot, (200, 0, 0), (255, 0, 0), "Стрельба- RCTRL", (0, 0, 0))
+        if active_button:
+            draw_text("Нажмите новую клавишу", font, BLACK, screen, WIDTH // 2, HEIGHT - 100, True)
+
         pygame.display.flip()
+
+
+def load_settings():
+    settings = {
+        "sound_value": 1.0,
+        "music_value": 1.0,
+        "key_bindings": {
+            "first_forward": pygame.K_w,
+            "first_left": pygame.K_a,
+            "first_back": pygame.K_s,
+            "first_right": pygame.K_d,
+            "first_action": pygame.K_e,
+            "first_shoot": pygame.K_SPACE,
+            "second_forward": pygame.K_UP,
+            "second_left": pygame.K_LEFT,
+            "second_back": pygame.K_DOWN,
+            "second_right": pygame.K_RIGHT,
+            "second_action": pygame.K_KP0,
+            "second_shoot": pygame.K_RCTRL,
+        }
+    }
+    try:
+        with open("settings.txt", "r") as file:
+            for line in file:
+                key, value = line.strip().split("=")
+                if key == "sound_value" or key == "music_value":
+                    settings[key] = float(value)
+                else:
+                    key_binding, action = key.split(".")
+                    settings["key_bindings"][key_binding] = int(value)
+    except Exception:
+        pass
+    return settings
+
+
+def save_settings(settings):
+    with open("settings.txt", "w") as file:
+        file.write(f"sound_value={settings['sound_value']}\n")
+        file.write(f"music_value={settings['music_value']}\n")
+        for key, value in settings["key_bindings"].items():
+            file.write(f"{key}.key={value}\n")
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -265,7 +347,6 @@ class Bullet(pygame.sprite.Sprite):
         box = pygame.sprite.spritecollideany(self, walls)
         if box is not None:
             box.hp -= 10
-            print(box.hp)
             create_particles((box.rect.centerx, box.rect.centery), box)
             if box.hp <= 0:
                 box.kill()
@@ -625,14 +706,9 @@ class Grass(pygame.sprite.Sprite):
 
 def load_level(filename):
     filename = "data/" + filename
-    # читаем уровень, убирая символы перевода строки
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
-
-    # и подсчитываем максимальную длину
     max_width = max(map(len, level_map))
-
-    # дополняем каждую строку пустыми клетками ('.')
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
 
@@ -668,7 +744,6 @@ def generate_level(level):
                 # new_player = Ball(20, 955, 150, 'first_player')
             elif level[y][x] == '^':
                 tile('iron_box', x, y)
-    # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
 
@@ -685,6 +760,9 @@ first_player = Player(rad, 960, 150, 'first_player')
 second_player = Player(rad, 960, 930, 'first_player')
 running = True
 start_screen()
+pygame.mixer.music.load('music\\music_game1.wav')
+pygame.mixer.music.set_volume(1)
+pygame.mixer.music.play()
 while running:
     current_time = pygame.time.get_ticks()
     keys = pygame.key.get_pressed()

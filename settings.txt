@@ -1,0 +1,14 @@
+sound_value=1
+music_value=1.0
+first_forward.key=119
+first_left.key=97
+first_back.key=115
+first_right.key=100
+first_action.key=101
+first_shoot.key=32
+second_forward.key=1073741906
+second_left.key=1073741904
+second_back.key=1073741905
+second_right.key=1073741903
+second_action.key=1073741922
+second_shoot.key=1073742052
