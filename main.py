@@ -19,6 +19,7 @@ screen = pygame.display.set_mode(size)
 all_sprites = pygame.sprite.Group()
 weapons = pygame.sprite.Group()
 protection = pygame.sprite.Group()
+health = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 iron_box = pygame.sprite.Group()
 floor = pygame.sprite.Group()
@@ -29,7 +30,12 @@ screen_rect = (0, 0, WIDTH, HEIGHT)
 sound_walking_iron = pygame.mixer.Sound('sounds\\walking_on_iron.wav')
 sound_button = pygame.mixer.Sound('sounds\\button_sound.wav')
 
+sound_heal = pygame.mixer.Sound('sounds\\heal_sound.wav')
 sound_shoot = pygame.mixer.Sound('sounds\\shot_m4.wav')
+sound_uzi = pygame.mixer.Sound('sounds\\uzi_sound.wav')
+sound_sniper = pygame.mixer.Sound('sounds\\sniper_shoot.wav')
+sound_pistol = pygame.mixer.Sound('sounds\\pistol_sound.wav')
+sound_shotgun = pygame.mixer.Sound('sounds\\shotgun_sound.wav')
 sound_change_weapon = pygame.mixer.Sound('sounds\\change_weapon.wav')
 sound_no_ammo = pygame.mixer.Sound('sounds\\sound_no_ammo.wav')
 sound_change_armor = pygame.mixer.Sound('sounds\\change_armor.wav')
@@ -55,15 +61,15 @@ def load_image(name, path='data', colorkey=None):
     if colorkey is not None:
         image = image.convert()
         if colorkey == -1:
-            colorkey = image.get_at((1, 1))
+            colorkey = image.get_at((0, 0))
         image.set_colorkey(colorkey)
     else:
         image = image.convert_alpha()
     return image
 
 
-font = pygame.font.Font(None, 50)
-font_side = pygame.font.Font(None, 52)
+font = pygame.font.Font('data\\main_font.otf', 30)
+font_side = pygame.font.Font('data\\main_font.otf', 31)
 
 
 def draw_button(surface, rect, color, hover_color, text, text_color):
@@ -94,7 +100,7 @@ def draw_slider(surface, rect, color, hover_color, value, is_dragging):
     # Изменение цвета слайдера при наведении
     slider_color = hover_color if is_hovered else color
 
-    # Рисуем слайдер
+    # слайдер
     pygame.draw.rect(surface, slider_color, rect, border_radius=10)
 
     # Положение ползунка
@@ -315,29 +321,28 @@ def save_settings(settings):
 
 
 class Bullet(pygame.sprite.Sprite):
-    image = load_image("bullet.png", colorkey=-1)
-    image = pygame.transform.scale(image, (50, 50))
-
     def __init__(self, pos, target_pos, owner):
         super().__init__(all_sprites)
-        self.image = Bullet.image
+        self.image = load_image("bullet.png", colorkey=-1)
+        self.image = pygame.transform.scale(self.image, (50, 50))
+        self.damage = 40
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect(center=pos)
         self.owner = owner
-        self.v = 1000
+        self.v = 2000
         dx = target_pos[0] - pos[0]
         dy = target_pos[1] - pos[1]
         distance = math.sqrt(dx ** 2 + dy ** 2)
         if distance == 0:
             self.velocity = [0, 0]
         else:
-            angle_deviation = random.uniform(-0.1, 0.1)
+            self.angle_deviation = random.uniform(-0.1, 0.1)
             self.velocity = [
-                (dx / distance) * self.v / fps + dy / distance * angle_deviation * self.v / fps,
-                (dy / distance) * self.v / fps - dx / distance * angle_deviation * self.v / fps
+                (dx / distance) * self.v / fps + dy / distance * self.angle_deviation * self.v / fps,
+                (dy / distance) * self.v / fps - dx / distance * self.angle_deviation * self.v / fps
             ]
             angle = math.degrees(math.atan2(dy, dx))
-            self.image = pygame.transform.rotate(Bullet.image, -angle)
+            self.image = pygame.transform.rotate(self.image, -angle)
             self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args):
@@ -345,7 +350,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.y += self.velocity[1]
         box = pygame.sprite.spritecollideany(self, walls)
         if box is not None:
-            box.hp -= 10
+            box.hp -= self.damage
             create_particles((box.rect.centerx, box.rect.centery), box)
             if box.hp <= 0:
                 box.kill()
@@ -363,14 +368,16 @@ class Bullet(pygame.sprite.Sprite):
                            sprite != self and sprite != self.owner):
                         for i in players:
                             if i != self.owner:
-                                i.hp -= 25
+                                i.hp -= self.damage
                                 create_particles((i.rect.centerx, i.rect.centery), i)
                                 if i.hp > 0:
                                     random.choice(sound_injury).play()
                         self.kill()
                 else:
                     if pygame.sprite.collide_mask(self, i.armor):
-                        i.armor.hp -= 10
+                        i.armor.hp -= self.damage
+                        if i.armor.hp <= 0:
+                            i.hp += i.armor.hp
                         create_particles((i.rect.centerx, i.rect.centery), i.armor)
                         sound_shoot_armor.play()
                         self.kill()
@@ -378,6 +385,68 @@ class Bullet(pygame.sprite.Sprite):
 
         if not self.rect.colliderect(screen_rect):
             self.kill()
+
+
+class Uzi_bullet(Bullet):
+    def __init__(self, pos, target_pos, owner):
+        super().__init__(pos, target_pos, owner)
+        self.damage = 15
+        self.angle_deviation = random.uniform(-0.05, 0.05)
+
+        dx = target_pos[0] - pos[0]
+        dy = target_pos[1] - pos[1]
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if distance != 0:
+            self.velocity = [
+                (dx / distance) * self.v / fps + dy / distance * self.angle_deviation * self.v / fps,
+                (dy / distance) * self.v / fps - dx / distance * self.angle_deviation * self.v / fps
+            ]
+
+
+class Sniper_bullet(Bullet):
+    def __init__(self, pos, target_pos, owner):
+        super().__init__(pos, target_pos, owner)
+        self.damage = 500
+        self.angle_deviation = random.uniform(-0.01, 0.01)
+        self.v = 5000
+        dx = target_pos[0] - pos[0]
+        dy = target_pos[1] - pos[1]
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if distance != 0:
+            self.velocity = [
+                (dx / distance) * self.v / fps + dy / distance * self.angle_deviation * self.v / fps,
+                (dy / distance) * self.v / fps - dx / distance * self.angle_deviation * self.v / fps
+            ]
+
+
+class Pistol_bullet(Bullet):
+    def __init__(self, pos, target_pos, owner):
+        super().__init__(pos, target_pos, owner)
+        self.damage = 50
+        self.angle_deviation = random.uniform(-0.05, 0.05)
+        dx = target_pos[0] - pos[0]
+        dy = target_pos[1] - pos[1]
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if distance != 0:
+            self.velocity = [
+                (dx / distance) * self.v / fps + dy / distance * self.angle_deviation * self.v / fps,
+                (dy / distance) * self.v / fps - dx / distance * self.angle_deviation * self.v / fps
+            ]
+
+
+class Shotgun_bullet(Bullet):
+    def __init__(self, pos, target_pos, owner):
+        super().__init__(pos, target_pos, owner)
+        self.damage = 50
+        self.angle_deviation = random.uniform(-0.1, 0.1)
+        dx = target_pos[0] - pos[0]
+        dy = target_pos[1] - pos[1]
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if distance != 0:
+            self.velocity = [
+                (dx / distance) * self.v / fps + dy / distance * self.angle_deviation * self.v / fps,
+                (dy / distance) * self.v / fps - dx / distance * self.angle_deviation * self.v / fps
+            ]
 
 
 class Player(pygame.sprite.Sprite):
@@ -389,7 +458,7 @@ class Player(pygame.sprite.Sprite):
         self.animations = {}
         self.load_animations()
         self.current_frame = 0
-        self.animation_speed = 0.1
+        self.animation_speed = 0.15
         self.current_animation = 'down'
         self.image = self.animations['down'][0]
 
@@ -397,7 +466,7 @@ class Player(pygame.sprite.Sprite):
         self.hp = 1000
         self.weapon = None
         self.armor = None
-        self.v = 300
+        self.v = 500
 
     def load_animations(self):
         for direction in ['up', 'down', 'left', 'right']:
@@ -500,7 +569,7 @@ class Weapon(pygame.sprite.Sprite):
         self.original_image = load_image(image_path, colorkey=-1)
         self.original_image = pygame.transform.scale(self.original_image, (77, 26))
         self.image = self.original_image
-        self.offset = pygame.math.Vector2(-20, 15)
+        self.offset = pygame.math.Vector2(-10, 0)
         if self.owner is not None:
             self.rect = self.image.get_rect(center=owner.rect.center + self.offset)
         else:
@@ -562,13 +631,131 @@ class Weapon(pygame.sprite.Sprite):
             sound_no_ammo.play()
 
 
+class Uzi(Weapon):
+    def __init__(self, image_path, owner):
+        super().__init__(image_path, owner)
+        self.ammo = 62
+        self.original_image = load_image(image_path, colorkey=-1)
+        self.original_image = pygame.transform.scale(self.original_image, (80, 45))
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+        self.fire_timer = 0
+        self.fire_rate = 15
+
+    def shoot(self):
+        if self.fire_timer <= 0 and self.ammo > 0:
+            bullet_start_pos = self.get_barrel_position()
+            target = second_player if self.owner == first_player else first_player
+            bullet = Uzi_bullet(bullet_start_pos, target.rect.center, self.owner)
+            bullets.add(bullet)
+            sound_uzi.play()
+            self.fire_timer = self.fire_rate
+            self.ammo -= 1
+
+        if self.ammo == 0:
+            sound_no_ammo.play()
+
+    def update(self, target):
+        super().update(target)
+        if self.fire_timer > 0:
+            self.fire_timer -= 1
+
+
+class Sniper_rifle(Weapon):
+    def __init__(self, image_path, owner):
+        super().__init__(image_path, owner)
+        self.ammo = 3
+        self.original_image = load_image(image_path, colorkey=-1)
+        self.original_image = pygame.transform.scale(self.original_image, (150, 50))
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+        self.fire_timer = 0
+        self.fire_rate = 200
+
+    def shoot(self):
+        if self.fire_timer <= 0 and self.ammo > 0:
+            bullet_start_pos = self.get_barrel_position()
+            target = second_player if self.owner == first_player else first_player
+            bullet = Sniper_bullet(bullet_start_pos, target.rect.center, self.owner)
+            bullets.add(bullet)
+            sound_sniper.play()
+            self.fire_timer = self.fire_rate
+            self.ammo -= 1
+
+        if self.ammo == 0:
+            sound_no_ammo.play()
+
+    def update(self, target):
+        super().update(target)
+        if self.fire_timer > 0:
+            self.fire_timer -= 1
+
+
+class Pistol(Weapon):
+    def __init__(self, image_path, owner):
+        super().__init__(image_path, owner)
+        self.ammo = 10
+        self.original_image = load_image(image_path, colorkey=-1)
+        self.original_image = pygame.transform.scale(self.original_image, (60, 25))
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+        self.fire_timer = 0
+        self.fire_rate = 100
+
+    def shoot(self):
+        if self.fire_timer <= 0 and self.ammo > 0:
+            bullet_start_pos = self.get_barrel_position()
+            target = second_player if self.owner == first_player else first_player
+            bullet = Pistol_bullet(bullet_start_pos, target.rect.center, self.owner)
+            bullets.add(bullet)
+            sound_pistol.play()
+            self.fire_timer = self.fire_rate
+            self.ammo -= 1
+
+        if self.ammo == 0:
+            sound_no_ammo.play()
+
+    def update(self, target):
+        super().update(target)
+        if self.fire_timer > 0:
+            self.fire_timer -= 1
+
+
+class Shotgun(Weapon):
+    def __init__(self, image_path, owner):
+        super().__init__(image_path, owner)
+        self.ammo = 8
+        self.fire_timer = 0
+        self.fire_rate = 60
+        self.original_image = load_image(image_path, colorkey=-1)
+        self.original_image = pygame.transform.scale(self.original_image, (120, 120))
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+
+    def shoot(self):
+        if self.fire_timer <= 0 and self.ammo > 0:
+            bullet_start_pos = self.get_barrel_position()
+            target = second_player if self.owner == first_player else first_player
+
+            for i in range(3):
+                bullet = Shotgun_bullet(bullet_start_pos, target.rect.center, self.owner)
+                bullets.add(bullet)
+
+            sound_shotgun.play()
+            self.fire_timer = self.fire_rate
+            self.ammo -= 1
+
+        if self.ammo == 0:
+            sound_no_ammo.play()
+
+
 class Armor(pygame.sprite.Sprite):
     def __init__(self, armor_path, owner):
         super().__init__(protection)
         self.owner = owner
 
         self.image = load_image(armor_path, colorkey=-1)
-        self.image = pygame.transform.scale(self.image, (100, 50))
+        self.image = pygame.transform.scale(self.image, (90, 50))
 
         if self.owner is not None:
             self.rect = self.image.get_rect(center=owner.rect.center)
@@ -592,12 +779,26 @@ class Armor(pygame.sprite.Sprite):
             self.kill()
 
 
+class Heart(Armor):
+    def __init__(self, heart_pic, owner):
+        super().__init__(heart_pic, owner)
+        self.hp = 50
+        self.image = load_image(heart_pic, colorkey=-1)
+        self.image = pygame.transform.scale(self.image, (30, 30))
+
+
 class Middle_Armor(Armor):
     def __init__(self, armor_path, owner):
         super().__init__(armor_path, owner)
         self.hp = 200
         # self.image = load_image(armor_path, colorkey=-1)
         # self.image = pygame.transform.scale(self.image, (100, 100))
+
+
+class Heavy_Armor(Armor):
+    def __init__(self, armor_path, owner):
+        super().__init__(armor_path, owner)
+        self.hp = 300
 
 
 class Wall(pygame.sprite.Sprite):
@@ -683,7 +884,11 @@ class Box(pygame.sprite.Sprite):
                     normal_x = dx / distance
                     normal_y = dy / distance
                 self.rect.x -= normal_x * overlap / 2
+                if pygame.sprite.spritecollideany(self, iron_box):
+                    self.rect.x += normal_x * overlap / 2
                 self.rect.y -= normal_y * overlap / 2
+                if pygame.sprite.spritecollideany(self, iron_box):
+                    self.rect.y += normal_x * overlap / 2
 
 
 class Iron_box(pygame.sprite.Sprite):
@@ -714,7 +919,7 @@ def load_level(filename):
 
 tile_images = {
     'wall': load_image('box.png'),
-    'empty': load_image('grass.png'),
+    'empty': load_image('floor1.jpg'),
     'iron_box': load_image('iron_box.png')
 }
 tile_width = tile_height = 100
@@ -750,18 +955,34 @@ def generate_level(level):
 f1 = pygame.font.Font(None, 58)
 
 MAX_WEAPONS = 5
-MAX_ARMOR = 3
+MAX_ARMOR = 5
+count_weapon = 0
+count_protection = 0
 player, level_x, level_y = generate_level(load_level('map.txt'))
 
-last_spawn_time = 0
-spawn_interval = 1000
+last_spawn_time_weapon = 0
+spawn_interval_weapon = 4000
+
+last_spawn_time_armor = 0
+spawn_interval_armor = 3000
+
+last_spawn_time_heart = 0
+spawn_interval_heart = 2000
+
 rad = 20
 first_player = Player(rad, 960, 150, 'first_player')
-second_player = Player(rad, 960, 930, 'first_player')
+second_player = Player(rad, 960, 930, 'second_player')
 running = True
 start_screen()
 pygame.mixer.music.load('music\\music_game1.wav')
 pygame.mixer.music.play()
+
+armor_pic = load_image('armor.jpg')
+armor_pic = pygame.transform.scale(armor_pic, (50, 50))
+health_pic = load_image('health.jpg')
+health_pic = pygame.transform.scale(health_pic, (50, 50))
+ammo_pic = load_image('ammo.jpg')
+ammo_pic = pygame.transform.scale(ammo_pic, (50, 50))
 
 initial_key_bindings = load_settings()["key_bindings"]
 while running:
@@ -832,20 +1053,52 @@ while running:
                         armor.owner = second_player
                         protection.remove(armor)
                         break
-    if current_time - last_spawn_time >= spawn_interval:
-        if len(weapons) <= MAX_WEAPONS:  # MAX_WEAPONS — максимальное количество оружияd
-            new_weapon = Weapon('m41.jpg', None)
+    if current_time - last_spawn_time_weapon >= spawn_interval_weapon:
+        if count_weapon <= MAX_WEAPONS:
+            choose = random.randint(0, 5)
+            if choose == 0:
+                new_weapon = Weapon('m41.jpg', None)
+            elif choose == 1:
+                new_weapon = Uzi('uzi2.jpg', None)
+            elif choose == 2:
+                new_weapon = Sniper_rifle('sniper_rifle.png', None)
+            elif choose == 3:
+                new_weapon = Pistol('pistol.jpg', None)
+            else:
+                new_weapon = Shotgun('shotgun.jpg', None)
             new_weapon.spawn_weapon()
             weapons.add(new_weapon)
-            last_spawn_time = current_time
-        if len(protection) <= MAX_ARMOR:
-            new_armor = Armor('armor_first.jpg', None)
-            middle_armor = Middle_Armor('middle_armor.jpg', None)
+            count_weapon += 1
+            last_spawn_time_weapon = current_time
+    if current_time - last_spawn_time_armor >= spawn_interval_armor:
+        if count_protection <= MAX_ARMOR:
+            choose = random.randint(0, 2)
+            if choose == 1:
+                new_armor = Middle_Armor('middle_armor.jpg', None)
+            elif choose == 0:
+                new_armor = Armor('light_armor.png', None)
+            else:
+                new_armor = Heavy_Armor('heavy_armor.png', None)
             new_armor.spawn_armor()
-            middle_armor.spawn_armor()
             protection.add(new_armor)
-            protection.add(middle_armor)
-            last_spawn_time = current_time
+            count_protection += 1
+            last_spawn_time_armor = current_time
+    if current_time - last_spawn_time_heart >= spawn_interval_heart:
+        new_heart = Heart('heart.jpg', None)
+        new_heart.spawn_armor()
+        health.add(new_heart)
+        last_spawn_time_heart = current_time
+
+    first_health = pygame.sprite.spritecollideany(first_player, health)
+    if first_health is not None:
+        first_player.hp += first_health.hp
+        sound_heal.play()
+        first_health.kill()
+    second_health = pygame.sprite.spritecollideany(second_player, health)
+    if second_health is not None:
+        second_player.hp += second_health.hp
+        sound_heal.play()
+        second_health.kill()
 
     screen.fill("black")
     all_sprites.update(initial_key_bindings)
@@ -861,6 +1114,7 @@ while running:
     floor.draw(screen)
     iron_box.draw(screen)
     walls.draw(screen)
+    health.draw(screen)
     all_sprites.draw(screen)
     protection.draw(screen)
     weapons.draw(screen)
@@ -873,24 +1127,33 @@ while running:
     if second_player.weapon:
         screen.blit(second_player.weapon.image, second_player.weapon.rect)
     clock.tick(fps)
-    hp_first = f1.render(f'ЗДОРОВЬЕ:{first_player.hp}', True,
-                         'red')
-    hp_second = f1.render(f'ЗДОРОВЬЕ:{second_player.hp}', True,
-                          'red')
-    armor_first = f1.render(f'БРОНЯ:{first_player.armor.hp if first_player.armor else 0}', True,
-                            'black')
-    armor_second = f1.render(f'БРОНЯ:{second_player.armor.hp if second_player.armor else 0}', True,
+    hp_first = font.render(f'{first_player.hp if first_player.hp > 0 else 0}', True,
+                           'red')
+    hp_second = font.render(f'{second_player.hp if second_player.hp > 0 else 0}', True,
+                            'red')
+    armor_first = font.render(f'{first_player.armor.hp if first_player.armor else 0}', True,
+                              'black')
+    armor_second = font.render(f'{second_player.armor.hp if second_player.armor else 0}', True,
+                               'black')
+    ammo_first = font.render(f'{first_player.weapon.ammo if first_player.weapon else 0}', True,
                              'black')
-    ammo_first = f1.render(f'ПАТРОНЫ:{first_player.weapon.ammo if first_player.weapon else 0}', True,
-                           'black')
-    ammo_second = f1.render(f'ПАТРОНЫ:{second_player.weapon.ammo if second_player.weapon else 0}', True,
-                            'black')
-    screen.blit(hp_first, (10, 1000))
-    screen.blit(armor_first, (10, 1040))
-    screen.blit(ammo_first, (350, 1020))
+    ammo_second = font.render(f'{second_player.weapon.ammo if second_player.weapon else 0}', True,
+                              'black')
 
-    screen.blit(hp_second, (1340, 1000))
-    screen.blit(armor_second, (1340, 1040))
-    screen.blit(ammo_second, (1680, 1020))
+    screen.blit(health_pic, (45, 1000))  # картинки первого игрока
+    screen.blit(armor_pic, (45, 1040))
+    screen.blit(ammo_pic, (195, 1010))
+
+    screen.blit(hp_first, (100, 1000))  # параметры первого игрока
+    screen.blit(armor_first, (100, 1040))
+    screen.blit(ammo_first, (250, 1020))
+
+    screen.blit(health_pic, (1830, 1000))  # картинки второго игрока
+    screen.blit(armor_pic, (1830, 1040))
+    screen.blit(ammo_pic, (1680, 1010))
+
+    screen.blit(hp_second, (1750, 1000))  # параметры первого игрока
+    screen.blit(armor_second, (1750, 1040))
+    screen.blit(ammo_second, (1630, 1020))
     pygame.display.flip()
 pygame.quit()
