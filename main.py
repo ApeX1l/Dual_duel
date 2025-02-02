@@ -157,7 +157,7 @@ def start_screen():
 
 def get_key_name(key_code):
     key_name = pygame.key.name(key_code)
-    return f"pygame.K_{key_name.upper()}"
+    return f"{key_name.upper()}"
 
 
 def settings():
@@ -208,9 +208,8 @@ def settings():
                     save_settings({
                         "sound_value": sound_value,
                         "music_value": music_value,
-                        "key_bindings": key_bindings,
-                    })
-                    return
+                        "key_bindings": key_bindings})
+                    return key_bindings
             elif event.type == pygame.MOUSEBUTTONUP:
                 music_dragging = False
                 sound_dragging = False
@@ -290,7 +289,7 @@ def load_settings():
             "second_back": pygame.K_DOWN,
             "second_right": pygame.K_RIGHT,
             "second_action": pygame.K_KP0,
-            "second_shoot": pygame.K_RCTRL,
+            "second_shoot": pygame.K_RCTRL
         }
     }
     try:
@@ -415,26 +414,27 @@ class Player(pygame.sprite.Sprite):
                 print('Папка не найдена')
                 self.animations[direction] = [pygame.Surface((1, 1), pygame.SRCALPHA)]
 
-    def update(self, keys):
+    def update(self, bind):
         flag = False
         current_time = pygame.time.get_ticks()
+        keys = pygame.key.get_pressed()
         if self == first_player:
-            if keys[pygame.K_w]:
+            if keys[bind['first_forward']]:
                 self.rect.y -= self.v / fps
                 self.current_animation = 'up'
                 if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y += self.v / fps
-            elif keys[pygame.K_s]:
+            elif keys[bind['first_back']]:
                 self.rect.y += self.v / fps
                 self.current_animation = 'down'
                 if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y -= self.v / fps
-            elif keys[pygame.K_a]:
+            elif keys[bind['first_left']]:
                 self.rect.x -= self.v / fps
                 self.current_animation = 'left'
                 if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.x += self.v / fps
-            elif keys[pygame.K_d]:
+            elif keys[bind['first_right']]:
                 self.rect.x += self.v / fps
                 self.current_animation = 'right'
                 if pygame.sprite.collide_mask(self, second_player) or pygame.sprite.spritecollideany(self, iron_box):
@@ -442,22 +442,22 @@ class Player(pygame.sprite.Sprite):
             else:
                 flag = True
         else:
-            if keys[pygame.K_UP]:
+            if keys[bind['second_forward']]:
                 self.rect.y -= self.v / fps
                 self.current_animation = 'up'
                 if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y += self.v / fps
-            elif keys[pygame.K_DOWN]:
+            elif keys[bind['second_back']]:
                 self.rect.y += self.v / fps
                 self.current_animation = 'down'
                 if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.y -= self.v / fps
-            elif keys[pygame.K_LEFT]:
+            elif keys[bind['second_left']]:
                 self.rect.x -= self.v / fps
                 self.current_animation = 'left'
                 if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
                     self.rect.x += self.v / fps
-            elif keys[pygame.K_RIGHT]:
+            elif keys[bind['second_right']]:
                 self.rect.x += self.v / fps
                 self.current_animation = 'right'
                 if pygame.sprite.collide_mask(self, first_player) or pygame.sprite.spritecollideany(self, iron_box):
@@ -761,22 +761,24 @@ second_player = Player(rad, 960, 930, 'first_player')
 running = True
 start_screen()
 pygame.mixer.music.load('music\\music_game1.wav')
-pygame.mixer.music.set_volume(1)
 pygame.mixer.music.play()
+
+initial_key_bindings = load_settings()["key_bindings"]
 while running:
     current_time = pygame.time.get_ticks()
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_SPACE] and first_player.weapon:
+    if keys[initial_key_bindings['first_shoot']] and first_player.weapon:
         first_player.weapon.shoot()
-    if keys[pygame.K_KP0] and second_player.weapon:
+    if keys[initial_key_bindings['second_shoot']] and second_player.weapon:
         second_player.weapon.shoot()
     if keys[pygame.K_ESCAPE]:
         settings()
+        initial_key_bindings = load_settings()["key_bindings"]
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_e:
+            if event.key == initial_key_bindings['first_action']:
                 for weapon in weapons:
                     if pygame.sprite.collide_rect(first_player, weapon):
                         if first_player.weapon:
@@ -803,7 +805,7 @@ while running:
                         armor.owner = first_player
                         protection.remove(armor)
                         break
-            if event.key == pygame.K_RCTRL:
+            if event.key == initial_key_bindings['second_action']:
                 for weapon in weapons:
                     if pygame.sprite.collide_rect(second_player, weapon):
                         if second_player.weapon:
@@ -846,7 +848,7 @@ while running:
             last_spawn_time = current_time
 
     screen.fill("black")
-    all_sprites.update(keys)
+    all_sprites.update(initial_key_bindings)
     box_first_player = pygame.sprite.spritecollide(first_player, walls, False)
     if box_first_player is not None:
         for i in box_first_player:
