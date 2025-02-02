@@ -12,6 +12,7 @@ BLUE = (0, 0, 255)
 
 pygame.init()
 fps = 60
+
 clock = pygame.time.Clock()
 size = WIDTH, HEIGHT = 1920, 1080
 button_width, button_height = 200, 50
@@ -49,7 +50,9 @@ sound_death = pygame.mixer.Sound('sounds\\death_people.wav')
 sound_injury = [sound_injury1, sound_injury2, sound_injury3, sound_injury4]
 all_sounds = [sound_walking_iron, sound_shoot, sound_change_weapon, sound_no_ammo, sound_change_armor,
               sound_shoot_armor,
-              sound_injury1, sound_injury2, sound_injury3, sound_injury4, sound_death, sound_button]
+              sound_injury1, sound_injury2, sound_injury3, sound_injury4, sound_death, sound_button, sound_heal,
+              sound_uzi, sound_sniper, sound_pistol, sound_shotgun]
+f1 = pygame.font.Font(None, 58)
 
 
 def load_image(name, path='data', colorkey=None):
@@ -463,7 +466,7 @@ class Player(pygame.sprite.Sprite):
         self.image = self.animations['down'][0]
 
         self.rect = self.image.get_rect(center=(x, y))
-        self.hp = 1000
+        self.hp = 100
         self.weapon = None
         self.armor = None
         self.v = 500
@@ -484,6 +487,7 @@ class Player(pygame.sprite.Sprite):
                 self.animations[direction] = [pygame.Surface((1, 1), pygame.SRCALPHA)]
 
     def update(self, bind):
+        global victory
         flag = False
         current_time = pygame.time.get_ticks()
         keys = pygame.key.get_pressed()
@@ -533,13 +537,14 @@ class Player(pygame.sprite.Sprite):
                     self.rect.x -= self.v / fps
             else:
                 flag = True
-        if not flag and current_time - self.last_step_time > 500:  # 500 мс = 0.5 секунды
+        if not flag and current_time - self.last_step_time > 400:
             sound_walking_iron.play()
 
             self.last_step_time = current_time
         if self.hp <= 0:
             self.weapon = None
             self.kill()
+            victory = True
             sound_death.play()
 
         if not flag:
@@ -952,7 +957,33 @@ def generate_level(level):
     return new_player, x, y
 
 
-f1 = pygame.font.Font(None, 58)
+def end_game():
+    button_width = 400
+    button_height = 35
+
+    start_button = pygame.Rect(1920 // 2 - button_width // 2, 400, button_width, button_height)
+    exit_button = pygame.Rect(1920 // 2 - button_width // 2, 500, button_width, button_height)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if start_button.collidepoint(event.pos):
+                    sound_button.play()
+                    return
+                elif exit_button.collidepoint(event.pos):
+                    sound_button.play()
+                    start_screen()
+                    return
+
+        draw_button(screen, start_button, (200, 0, 0), (255, 0, 0), "Начать заново", (0, 0, 0))
+        draw_button(screen, exit_button, (200, 0, 0), (255, 0, 0), "Выход в главное меню", (0, 0, 0))
+
+        pygame.display.flip()
+        clock.tick(fps)
+
 
 MAX_WEAPONS = 5
 MAX_ARMOR = 5
@@ -975,7 +1006,7 @@ second_player = Player(rad, 960, 930, 'second_player')
 running = True
 start_screen()
 pygame.mixer.music.load('music\\music_game1.wav')
-pygame.mixer.music.play()
+pygame.mixer.music.play(-1)
 
 armor_pic = load_image('armor.jpg')
 armor_pic = pygame.transform.scale(armor_pic, (50, 50))
@@ -984,6 +1015,7 @@ health_pic = pygame.transform.scale(health_pic, (50, 50))
 ammo_pic = load_image('ammo.jpg')
 ammo_pic = pygame.transform.scale(ammo_pic, (50, 50))
 
+victory = False
 initial_key_bindings = load_settings()["key_bindings"]
 while running:
     current_time = pygame.time.get_ticks()
@@ -1090,12 +1122,12 @@ while running:
         last_spawn_time_heart = current_time
 
     first_health = pygame.sprite.spritecollideany(first_player, health)
-    if first_health is not None:
-        first_player.hp += first_health.hp
+    if first_health is not None and first_player.hp < 1000:
+        first_player.hp += first_health.hp if first_player.hp <= 1000 else 0
         sound_heal.play()
         first_health.kill()
     second_health = pygame.sprite.spritecollideany(second_player, health)
-    if second_health is not None:
+    if second_health is not None and second_player.hp < 1000:
         second_player.hp += second_health.hp
         sound_heal.play()
         second_health.kill()
@@ -1155,5 +1187,7 @@ while running:
     screen.blit(hp_second, (1750, 1000))  # параметры первого игрока
     screen.blit(armor_second, (1750, 1040))
     screen.blit(ammo_second, (1630, 1020))
+    if victory:
+        end_game()
     pygame.display.flip()
 pygame.quit()
