@@ -3,10 +3,7 @@ import os
 import random
 import sys
 import pygame
-import ctypes
 
-myappid = 'company.app.1'
-ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (200, 0, 0)
@@ -16,8 +13,6 @@ BLUE = (0, 0, 255)
 pygame.init()
 fps = 60
 pygame.display.set_caption('Dual Duel')
-icon = pygame.image.load('data\\shortcut.jpg')
-pygame.display.set_icon(icon)
 
 mapp = None
 clock = pygame.time.Clock()

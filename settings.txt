@@ -1,4 +1,4 @@
-sound_value=1
+sound_value=1.0
 music_value=1.0
 first_forward.key=119
 first_left.key=97
