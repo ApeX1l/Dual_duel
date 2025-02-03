@@ -3,7 +3,10 @@ import os
 import random
 import sys
 import pygame
+import ctypes
 
+myappid = 'company.app.1'
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (200, 0, 0)
@@ -12,6 +15,9 @@ BLUE = (0, 0, 255)
 
 pygame.init()
 fps = 60
+pygame.display.set_caption('Dual Duel')
+icon = pygame.image.load('data\\shortcut.jpg')
+pygame.display.set_icon(icon)
 
 mapp = None
 clock = pygame.time.Clock()
@@ -515,7 +521,7 @@ class Player(pygame.sprite.Sprite):
         self.image = self.animations['down'][0]
 
         self.rect = self.image.get_rect(center=(x, y))
-        self.hp = 1000
+        self.hp = 750
         self.weapon = None
         self.armor = None
         self.v = 500
@@ -1184,12 +1190,12 @@ def main():
             last_spawn_time_heart = current_time
 
         first_health = pygame.sprite.spritecollideany(first_player, health)
-        if first_health is not None and first_player.hp < 1000:
-            first_player.hp += first_health.hp if first_player.hp <= 1000 else 0
+        if first_health is not None and first_player.hp < 750:
+            first_player.hp += first_health.hp
             sound_heal.play()
             first_health.kill()
         second_health = pygame.sprite.spritecollideany(second_player, health)
-        if second_health is not None and second_player.hp < 1000:
+        if second_health is not None and second_player.hp < 750:
             second_player.hp += second_health.hp
             sound_heal.play()
             second_health.kill()
