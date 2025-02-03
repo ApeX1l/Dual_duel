@@ -13,6 +13,7 @@ BLUE = (0, 0, 255)
 pygame.init()
 fps = 60
 
+mapp = None
 clock = pygame.time.Clock()
 size = WIDTH, HEIGHT = 1920, 1080
 button_width, button_height = 200, 50
@@ -100,13 +101,10 @@ def draw_slider(surface, rect, color, hover_color, value, is_dragging):
     mouse_pos = pygame.mouse.get_pos()
     is_hovered = rect.collidepoint(mouse_pos)
 
-    # Изменение цвета слайдера при наведении
     slider_color = hover_color if is_hovered else color
 
-    # слайдер
     pygame.draw.rect(surface, slider_color, rect, border_radius=10)
 
-    # Положение ползунка
     indicator_x = rect.x + int(value * rect.width)
     indicator_y = rect.centery
 
@@ -130,6 +128,7 @@ def terminate():
 
 
 def start_screen():
+    global mapp
     pygame.mixer.music.load('music\\main_menu.wav')
     pygame.mixer.music.set_volume(1)
     pygame.mixer.music.play(-1)
@@ -146,8 +145,9 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
                     sound_button.play()
-                    pygame.mixer.music.stop()
-                    return "start"
+                    mapp = choice_map()
+                    if mapp is not None:
+                        return restart_game()
                 elif settings_button.collidepoint(event.pos):
                     sound_button.play()
                     settings()
@@ -160,6 +160,56 @@ def start_screen():
         draw_button(screen, start_button, (200, 0, 0), (255, 0, 0), "Начать игру", (0, 0, 0))
         draw_button(screen, settings_button, (200, 0, 0), (255, 0, 0), "Настройки", (0, 0, 0))
         draw_button(screen, exit_button, (200, 0, 0), (255, 0, 0), "Выход", (0, 0, 0))
+        pygame.display.flip()
+        clock.tick(fps)
+
+
+def choice_map():
+    first_map = pygame.Rect(1920 // 2 - button_width // 2 - 400, 200, button_width * 1.5, button_height)
+    second_map = pygame.Rect(1920 // 2 - button_width // 2, 200, button_width * 1.5, button_height)
+    third_map = pygame.Rect(1920 // 2 - button_width // 2 + 400, 200, button_width * 1.5, button_height)
+
+    fourth_map = pygame.Rect(1920 // 2 - button_width // 2 - 400, 600, button_width * 1.5, button_height)
+    fifth_map = pygame.Rect(1920 // 2 - button_width // 2, 600, button_width * 1.5, button_height)
+    sixth_map = pygame.Rect(1920 // 2 - button_width // 2 + 400, 600, button_width * 1.5, button_height)
+    exit_button = pygame.Rect(1920 // 2 - button_width // 2 + 50, 1000, button_width, button_height)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if first_map.collidepoint(event.pos):
+                    sound_button.play()
+                    return 'map.txt'
+                elif second_map.collidepoint(event.pos):
+                    sound_button.play()
+                    return 'map1.txt'
+                elif third_map.collidepoint(event.pos):
+                    sound_button.play()
+                    return 'map2.txt'
+                elif fourth_map.collidepoint(event.pos):
+                    sound_button.play()
+                    return 'map3.txt'
+                elif fifth_map.collidepoint(event.pos):
+                    sound_button.play()
+                    return 'map4.txt'
+                elif sixth_map.collidepoint(event.pos):
+                    sound_button.play()
+                    return 'map5.txt'
+                elif exit_button.collidepoint(event.pos):
+                    sound_button.play()
+                    return
+        fon = pygame.transform.scale(load_image('main_menu_pic.jpg'), (1920, 1080))
+        screen.blit(fon, (0, 0))
+        draw_button(screen, first_map, (200, 0, 0), (255, 0, 0), "Первая карта", (0, 0, 0))
+        draw_button(screen, second_map, (200, 0, 0), (255, 0, 0), "Вторая карта", (0, 0, 0))
+        draw_button(screen, third_map, (200, 0, 0), (255, 0, 0), "Третья карта", (0, 0, 0))
+        draw_button(screen, fourth_map, (200, 0, 0), (255, 0, 0), "Четвертая карта", (0, 0, 0))
+        draw_button(screen, fifth_map, (200, 0, 0), (255, 0, 0), "Пятая карта ", (0, 0, 0))
+        draw_button(screen, sixth_map, (200, 0, 0), (255, 0, 0), "Шестая карта", (0, 0, 0))
+        draw_button(screen, exit_button, (200, 0, 0), (255, 0, 0), "Назад", (0, 0, 0))
         pygame.display.flip()
         clock.tick(fps)
 
@@ -453,9 +503,8 @@ class Shotgun_bullet(Bullet):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, radius, x, y, player_folder):
+    def __init__(self, x, y, player_folder):
         super().__init__(all_sprites, players)
-        self.radius = radius
         self.last_step_time = 0
         self.player_folder = player_folder
         self.animations = {}
@@ -466,7 +515,7 @@ class Player(pygame.sprite.Sprite):
         self.image = self.animations['down'][0]
 
         self.rect = self.image.get_rect(center=(x, y))
-        self.hp = 100
+        self.hp = 1000
         self.weapon = None
         self.armor = None
         self.v = 500
@@ -479,7 +528,7 @@ class Player(pygame.sprite.Sprite):
                 for filename in sorted(os.listdir(path)):
                     if filename.endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                         img = load_image(os.path.join(path, filename), '', -1)
-                        img = pygame.transform.scale(img, (100, 100))
+                        img = pygame.transform.scale(img, (90, 90))
                         images.append(img)
                 self.animations[direction] = images
             else:
@@ -541,11 +590,6 @@ class Player(pygame.sprite.Sprite):
             sound_walking_iron.play()
 
             self.last_step_time = current_time
-        if self.hp <= 0:
-            self.weapon = None
-            self.kill()
-            victory = True
-            sound_death.play()
 
         if not flag:
             self.animate()
@@ -558,6 +602,13 @@ class Player(pygame.sprite.Sprite):
             second_player.weapon.update(first_player)
         if self.armor is not None:
             self.armor.update()
+
+    def check_state(self):
+        if self.hp <= 0:
+            self.kill()
+            self.weapon = None
+            sound_death.play()
+            return True
 
     def animate(self):
         animation = self.animations.get(self.current_animation, self.animations['down'])
@@ -671,7 +722,7 @@ class Sniper_rifle(Weapon):
         super().__init__(image_path, owner)
         self.ammo = 3
         self.original_image = load_image(image_path, colorkey=-1)
-        self.original_image = pygame.transform.scale(self.original_image, (150, 50))
+        self.original_image = pygame.transform.scale(self.original_image, (125, 40))
         self.image = self.original_image
         self.rect = self.image.get_rect()
         self.fire_timer = 0
@@ -796,8 +847,6 @@ class Middle_Armor(Armor):
     def __init__(self, armor_path, owner):
         super().__init__(armor_path, owner)
         self.hp = 200
-        # self.image = load_image(armor_path, colorkey=-1)
-        # self.image = pygame.transform.scale(self.image, (100, 100))
 
 
 class Heavy_Armor(Armor):
@@ -867,7 +916,7 @@ class Box(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(self.image, (100, 100))
         self.rect = self.image.get_rect().move(
             tile_width * x, tile_height * y)
-        self.hp = 50
+        self.hp = 150
 
     def update(self):
         box_box = pygame.sprite.spritecollide(self, walls, False)
@@ -893,7 +942,7 @@ class Box(pygame.sprite.Sprite):
                     self.rect.x += normal_x * overlap / 2
                 self.rect.y -= normal_y * overlap / 2
                 if pygame.sprite.spritecollideany(self, iron_box):
-                    self.rect.y += normal_x * overlap / 2
+                    self.rect.y += normal_y * overlap / 2
 
 
 class Iron_box(pygame.sprite.Sprite):
@@ -924,7 +973,7 @@ def load_level(filename):
 
 tile_images = {
     'wall': load_image('box.png'),
-    'empty': load_image('floor1.jpg'),
+    'empty': load_image('floor2.jpg'),
     'iron_box': load_image('iron_box.png')
 }
 tile_width = tile_height = 100
@@ -949,9 +998,6 @@ def generate_level(level):
             elif level[y][x] == '#':
                 tile('wall', x, y)
                 walls.add()
-            elif level[y][x] == '@':
-                tile('empty', x, y)
-                # new_player = Ball(20, 955, 150, 'first_player')
             elif level[y][x] == '^':
                 tile('iron_box', x, y)
     return new_player, x, y
@@ -962,7 +1008,7 @@ def end_game():
     button_height = 35
 
     start_button = pygame.Rect(1920 // 2 - button_width // 2, 400, button_width, button_height)
-    exit_button = pygame.Rect(1920 // 2 - button_width // 2, 500, button_width, button_height)
+    exit_button = pygame.Rect(1920 // 2 - button_width // 2, 475, button_width, button_height)
 
     while True:
         for event in pygame.event.get():
@@ -972,11 +1018,10 @@ def end_game():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
                     sound_button.play()
-                    return
+                    return restart_game()
                 elif exit_button.collidepoint(event.pos):
                     sound_button.play()
-                    start_screen()
-                    return
+                    return start_screen()
 
         draw_button(screen, start_button, (200, 0, 0), (255, 0, 0), "Начать заново", (0, 0, 0))
         draw_button(screen, exit_button, (200, 0, 0), (255, 0, 0), "Выход в главное меню", (0, 0, 0))
@@ -985,26 +1030,35 @@ def end_game():
         clock.tick(fps)
 
 
-MAX_WEAPONS = 5
-MAX_ARMOR = 5
-count_weapon = 0
-count_protection = 0
-player, level_x, level_y = generate_level(load_level('map.txt'))
+def restart_game():
+    global first_player, second_player, count_weapon, count_protection, last_spawn_time_heart, last_spawn_time_armor, \
+        victory, last_spawn_time_weapon, count_weapon, count_protection
 
-last_spawn_time_weapon = 0
-spawn_interval_weapon = 4000
+    all_sprites.empty()
+    weapons.empty()
+    protection.empty()
+    health.empty()
+    players.empty()
+    bullets.empty()
+    walls.empty()
+    iron_box.empty()
+    floor.empty()
+    generate_level(load_level(mapp))
+    first_player = Player(960, 150, 'first_player')
+    second_player = Player(960, 950, 'second_player')
+    first_player.weapon = None
+    second_player.weapon = None
+    first_player.armor = None
+    second_player.armor = None
+    count_weapon = 0
+    count_protection = 0
+    last_spawn_time_weapon = 0
+    last_spawn_time_armor = 0
+    last_spawn_time_heart = 0
+    victory = False
+    return main()
 
-last_spawn_time_armor = 0
-spawn_interval_armor = 3000
 
-last_spawn_time_heart = 0
-spawn_interval_heart = 2000
-
-rad = 20
-first_player = Player(rad, 960, 150, 'first_player')
-second_player = Player(rad, 960, 930, 'second_player')
-running = True
-start_screen()
 pygame.mixer.music.load('music\\music_game1.wav')
 pygame.mixer.music.play(-1)
 
@@ -1015,179 +1069,192 @@ health_pic = pygame.transform.scale(health_pic, (50, 50))
 ammo_pic = load_image('ammo.jpg')
 ammo_pic = pygame.transform.scale(ammo_pic, (50, 50))
 
-victory = False
-initial_key_bindings = load_settings()["key_bindings"]
-while running:
-    current_time = pygame.time.get_ticks()
-    keys = pygame.key.get_pressed()
-    if keys[initial_key_bindings['first_shoot']] and first_player.weapon:
-        first_player.weapon.shoot()
-    if keys[initial_key_bindings['second_shoot']] and second_player.weapon:
-        second_player.weapon.shoot()
-    if keys[pygame.K_ESCAPE]:
-        settings()
-        initial_key_bindings = load_settings()["key_bindings"]
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == initial_key_bindings['first_action']:
-                for weapon in weapons:
-                    if pygame.sprite.collide_rect(first_player, weapon):
-                        if first_player.weapon:
-                            dropped_weapon = first_player.weapon
-                            dropped_weapon.owner = None
-                            dropped_weapon.rect.center = first_player.rect.center
-                            weapons.add(dropped_weapon)
-                            first_player.weapon = None
-                        sound_change_weapon.play()
-                        first_player.weapon = weapon
-                        weapon.owner = first_player
-                        weapons.remove(weapon)
-                        break
-                for armor in protection:
-                    if pygame.sprite.collide_rect(first_player, armor):
-                        if first_player.armor:
-                            dropped_armor = first_player.armor
-                            dropped_armor.owner = None
-                            dropped_armor.rect.center = first_player.rect.center
-                            protection.add(dropped_armor)
-                            first_player.armor = None
-                        sound_change_armor.play()
-                        first_player.armor = armor
-                        armor.owner = first_player
-                        protection.remove(armor)
-                        break
-            if event.key == initial_key_bindings['second_action']:
-                for weapon in weapons:
-                    if pygame.sprite.collide_rect(second_player, weapon):
-                        if second_player.weapon:
-                            dropped_weapon = second_player.weapon
-                            dropped_weapon.owner = None
-                            dropped_weapon.rect.center = second_player.rect.center
-                            weapons.add(dropped_weapon)
-                            second_player.weapon = None
-                        sound_change_weapon.play()
-                        second_player.weapon = weapon
-                        weapon.owner = second_player
-                        weapons.remove(weapon)
-                        break
-                for armor in protection:
-                    if pygame.sprite.collide_rect(second_player, armor):
-                        if second_player.armor:
-                            dropped_armor = second_player.armor
-                            dropped_armor.owner = None
-                            dropped_armor.rect.center = second_player.rect.center
-                            protection.add(dropped_armor)
-                            second_player.armor = None
-                        sound_change_armor.play()
-                        second_player.armor = armor
-                        armor.owner = second_player
-                        protection.remove(armor)
-                        break
-    if current_time - last_spawn_time_weapon >= spawn_interval_weapon:
-        if count_weapon <= MAX_WEAPONS:
-            choose = random.randint(0, 5)
-            if choose == 0:
-                new_weapon = Weapon('m41.jpg', None)
-            elif choose == 1:
-                new_weapon = Uzi('uzi2.jpg', None)
-            elif choose == 2:
-                new_weapon = Sniper_rifle('sniper_rifle.png', None)
-            elif choose == 3:
-                new_weapon = Pistol('pistol.jpg', None)
-            else:
-                new_weapon = Shotgun('shotgun.jpg', None)
-            new_weapon.spawn_weapon()
-            weapons.add(new_weapon)
-            count_weapon += 1
-            last_spawn_time_weapon = current_time
-    if current_time - last_spawn_time_armor >= spawn_interval_armor:
-        if count_protection <= MAX_ARMOR:
-            choose = random.randint(0, 2)
-            if choose == 1:
-                new_armor = Middle_Armor('middle_armor.jpg', None)
-            elif choose == 0:
-                new_armor = Armor('light_armor.png', None)
-            else:
-                new_armor = Heavy_Armor('heavy_armor.png', None)
-            new_armor.spawn_armor()
-            protection.add(new_armor)
-            count_protection += 1
-            last_spawn_time_armor = current_time
-    if current_time - last_spawn_time_heart >= spawn_interval_heart:
-        new_heart = Heart('heart.jpg', None)
-        new_heart.spawn_armor()
-        health.add(new_heart)
-        last_spawn_time_heart = current_time
 
-    first_health = pygame.sprite.spritecollideany(first_player, health)
-    if first_health is not None and first_player.hp < 1000:
-        first_player.hp += first_health.hp if first_player.hp <= 1000 else 0
-        sound_heal.play()
-        first_health.kill()
-    second_health = pygame.sprite.spritecollideany(second_player, health)
-    if second_health is not None and second_player.hp < 1000:
-        second_player.hp += second_health.hp
-        sound_heal.play()
-        second_health.kill()
+def main():
+    global last_spawn_time_weapon, last_spawn_time_armor, last_spawn_time_heart, count_weapon, count_protection, victory
+    running = True
+    MAX_WEAPONS = 5
+    MAX_ARMOR = 5
+    spawn_interval_weapon = 4000
+    spawn_interval_armor = 3000
+    spawn_interval_heart = 2000
+    initial_key_bindings = load_settings()["key_bindings"]
+    while running:
+        current_time = pygame.time.get_ticks()
+        keys = pygame.key.get_pressed()
+        if keys[initial_key_bindings['first_shoot']] and first_player.weapon:
+            first_player.weapon.shoot()
+        if keys[initial_key_bindings['second_shoot']] and second_player.weapon:
+            second_player.weapon.shoot()
+        if keys[pygame.K_ESCAPE]:
+            settings()
+            initial_key_bindings = load_settings()["key_bindings"]
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == initial_key_bindings['first_action']:
+                    for weapon in weapons:
+                        if pygame.sprite.collide_rect(first_player, weapon):
+                            if first_player.weapon:
+                                dropped_weapon = first_player.weapon
+                                dropped_weapon.owner = None
+                                dropped_weapon.rect.center = first_player.rect.center
+                                weapons.add(dropped_weapon)
+                                first_player.weapon = None
+                            sound_change_weapon.play()
+                            first_player.weapon = weapon
+                            weapon.owner = first_player
+                            weapons.remove(weapon)
+                            break
+                    for armor in protection:
+                        if pygame.sprite.collide_rect(first_player, armor):
+                            if first_player.armor:
+                                dropped_armor = first_player.armor
+                                dropped_armor.owner = None
+                                dropped_armor.rect.center = first_player.rect.center
+                                protection.add(dropped_armor)
+                                first_player.armor = None
+                            sound_change_armor.play()
+                            first_player.armor = armor
+                            armor.owner = first_player
+                            protection.remove(armor)
+                            break
+                if event.key == initial_key_bindings['second_action']:
+                    for weapon in weapons:
+                        if pygame.sprite.collide_rect(second_player, weapon):
+                            if second_player.weapon:
+                                dropped_weapon = second_player.weapon
+                                dropped_weapon.owner = None
+                                dropped_weapon.rect.center = second_player.rect.center
+                                weapons.add(dropped_weapon)
+                                second_player.weapon = None
+                            sound_change_weapon.play()
+                            second_player.weapon = weapon
+                            weapon.owner = second_player
+                            weapons.remove(weapon)
+                            break
+                    for armor in protection:
+                        if pygame.sprite.collide_rect(second_player, armor):
+                            if second_player.armor:
+                                dropped_armor = second_player.armor
+                                dropped_armor.owner = None
+                                dropped_armor.rect.center = second_player.rect.center
+                                protection.add(dropped_armor)
+                                second_player.armor = None
+                            sound_change_armor.play()
+                            second_player.armor = armor
+                            armor.owner = second_player
+                            protection.remove(armor)
+                            break
+        if current_time - last_spawn_time_weapon >= spawn_interval_weapon:
+            if count_weapon <= MAX_WEAPONS:
+                choose = random.randint(0, 5)
+                if choose == 0:
+                    new_weapon = Weapon('m41.jpg', None)
+                elif choose == 1:
+                    new_weapon = Uzi('uzi2.jpg', None)
+                elif choose == 2:
+                    new_weapon = Sniper_rifle('sniper_rifle.png', None)
+                elif choose == 3:
+                    new_weapon = Pistol('pistol.jpg', None)
+                else:
+                    new_weapon = Shotgun('shotgun.jpg', None)
+                new_weapon.spawn_weapon()
+                weapons.add(new_weapon)
+                count_weapon += 1
+                last_spawn_time_weapon = current_time
+        if current_time - last_spawn_time_armor >= spawn_interval_armor:
+            if count_protection <= MAX_ARMOR:
+                choose = random.randint(0, 2)
+                if choose == 1:
+                    new_armor = Middle_Armor('middle_armor.jpg', None)
+                elif choose == 0:
+                    new_armor = Armor('light_armor.png', None)
+                else:
+                    new_armor = Heavy_Armor('heavy_armor.png', None)
+                new_armor.spawn_armor()
+                protection.add(new_armor)
+                count_protection += 1
+                last_spawn_time_armor = current_time
+        if current_time - last_spawn_time_heart >= spawn_interval_heart:
+            new_heart = Heart('heart.jpg', None)
+            new_heart.spawn_armor()
+            health.add(new_heart)
+            last_spawn_time_heart = current_time
 
-    screen.fill("black")
-    all_sprites.update(initial_key_bindings)
-    box_first_player = pygame.sprite.spritecollide(first_player, walls, False)
-    if box_first_player is not None:
-        for i in box_first_player:
-            i.correct_position(first_player)
-    box_second_player = pygame.sprite.spritecollide(second_player, walls, False)
-    if box_second_player is not None:
-        for i in box_second_player:
-            i.correct_position(second_player)
-    walls.update()
-    floor.draw(screen)
-    iron_box.draw(screen)
-    walls.draw(screen)
-    health.draw(screen)
-    all_sprites.draw(screen)
-    protection.draw(screen)
-    weapons.draw(screen)
-    if first_player.armor:
-        screen.blit(first_player.armor.image, first_player.armor.rect)
-    if second_player.armor:
-        screen.blit(second_player.armor.image, second_player.armor.rect)
-    if first_player.weapon:
-        screen.blit(first_player.weapon.image, first_player.weapon.rect)
-    if second_player.weapon:
-        screen.blit(second_player.weapon.image, second_player.weapon.rect)
-    clock.tick(fps)
-    hp_first = font.render(f'{first_player.hp if first_player.hp > 0 else 0}', True,
-                           'red')
-    hp_second = font.render(f'{second_player.hp if second_player.hp > 0 else 0}', True,
-                            'red')
-    armor_first = font.render(f'{first_player.armor.hp if first_player.armor else 0}', True,
-                              'black')
-    armor_second = font.render(f'{second_player.armor.hp if second_player.armor else 0}', True,
-                               'black')
-    ammo_first = font.render(f'{first_player.weapon.ammo if first_player.weapon else 0}', True,
-                             'black')
-    ammo_second = font.render(f'{second_player.weapon.ammo if second_player.weapon else 0}', True,
-                              'black')
+        first_health = pygame.sprite.spritecollideany(first_player, health)
+        if first_health is not None and first_player.hp < 1000:
+            first_player.hp += first_health.hp if first_player.hp <= 1000 else 0
+            sound_heal.play()
+            first_health.kill()
+        second_health = pygame.sprite.spritecollideany(second_player, health)
+        if second_health is not None and second_player.hp < 1000:
+            second_player.hp += second_health.hp
+            sound_heal.play()
+            second_health.kill()
+        for i in players:
+            if i.check_state():
+                victory = True
+        screen.fill("black")
+        all_sprites.update(initial_key_bindings)
+        box_first_player = pygame.sprite.spritecollide(first_player, walls, False)
+        if box_first_player is not None:
+            for i in box_first_player:
+                i.correct_position(first_player)
+        box_second_player = pygame.sprite.spritecollide(second_player, walls, False)
+        if box_second_player is not None:
+            for i in box_second_player:
+                i.correct_position(second_player)
+        walls.update()
+        floor.draw(screen)
+        iron_box.draw(screen)
+        walls.draw(screen)
+        health.draw(screen)
+        all_sprites.draw(screen)
+        protection.draw(screen)
+        weapons.draw(screen)
+        if first_player.armor:
+            screen.blit(first_player.armor.image, first_player.armor.rect)
+        if second_player.armor:
+            screen.blit(second_player.armor.image, second_player.armor.rect)
+        if first_player.weapon:
+            screen.blit(first_player.weapon.image, first_player.weapon.rect)
+        if second_player.weapon:
+            screen.blit(second_player.weapon.image, second_player.weapon.rect)
+        clock.tick(fps)
+        hp_first = font.render(f'{first_player.hp if first_player.hp > 0 else 0}', True,
+                               'red')
+        hp_second = font.render(f'{second_player.hp if second_player.hp > 0 else 0}', True,
+                                'red')
+        armor_first = font.render(f'{first_player.armor.hp if first_player.armor else 0}', True,
+                                  'black')
+        armor_second = font.render(f'{second_player.armor.hp if second_player.armor else 0}', True,
+                                   'black')
+        ammo_first = font.render(f'{first_player.weapon.ammo if first_player.weapon else 0}', True,
+                                 'black')
+        ammo_second = font.render(f'{second_player.weapon.ammo if second_player.weapon else 0}', True,
+                                  'black')
 
-    screen.blit(health_pic, (45, 1000))  # картинки первого игрока
-    screen.blit(armor_pic, (45, 1040))
-    screen.blit(ammo_pic, (195, 1010))
+        screen.blit(health_pic, (45, 1000))  # картинки первого игрока
+        screen.blit(armor_pic, (45, 1040))
+        screen.blit(ammo_pic, (195, 1010))
 
-    screen.blit(hp_first, (100, 1000))  # параметры первого игрока
-    screen.blit(armor_first, (100, 1040))
-    screen.blit(ammo_first, (250, 1020))
+        screen.blit(hp_first, (100, 1000))  # параметры первого игрока
+        screen.blit(armor_first, (100, 1040))
+        screen.blit(ammo_first, (250, 1020))
 
-    screen.blit(health_pic, (1830, 1000))  # картинки второго игрока
-    screen.blit(armor_pic, (1830, 1040))
-    screen.blit(ammo_pic, (1680, 1010))
+        screen.blit(health_pic, (1830, 1000))  # картинки второго игрока
+        screen.blit(armor_pic, (1830, 1040))
+        screen.blit(ammo_pic, (1680, 1010))
 
-    screen.blit(hp_second, (1750, 1000))  # параметры первого игрока
-    screen.blit(armor_second, (1750, 1040))
-    screen.blit(ammo_second, (1630, 1020))
-    if victory:
-        end_game()
-    pygame.display.flip()
+        screen.blit(hp_second, (1750, 1000))  # параметры первого игрока
+        screen.blit(armor_second, (1750, 1040))
+        screen.blit(ammo_second, (1630, 1020))
+        if victory:
+            return end_game()
+        pygame.display.flip()
+
+
+start_screen()
 pygame.quit()
