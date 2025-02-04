@@ -856,14 +856,14 @@ class Heavy_Armor(Armor):
         self.hp = 300
 
 
-class Wall(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height):
-        super().__init__(all_sprites, walls)
-        self.image = pygame.Surface((width, height))
-        self.image.fill(pygame.Color("black"))
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
+# class Wall(pygame.sprite.Sprite):
+#     def __init__(self, x, y, width, height):
+#         super().__init__(all_sprites, walls)
+#         self.image = pygame.Surface((width, height))
+#         self.image.fill(pygame.Color("black"))
+#         self.rect = self.image.get_rect()
+#         self.rect.x = x
+#         self.rect.y = y
 
 
 class Particle(pygame.sprite.Sprite):
@@ -1060,9 +1060,6 @@ def restart_game():
     return main()
 
 
-pygame.mixer.music.load('music\\music_game1.wav')
-pygame.mixer.music.play(-1)
-
 armor_pic = load_image('armor.jpg')
 armor_pic = pygame.transform.scale(armor_pic, (50, 50))
 health_pic = load_image('health.jpg')
@@ -1074,7 +1071,9 @@ ammo_pic = pygame.transform.scale(ammo_pic, (50, 50))
 def main():
     global last_spawn_time_weapon, last_spawn_time_armor, last_spawn_time_heart, count_weapon, count_protection, victory
     running = True
-    MAX_WEAPONS = 5
+    pygame.mixer.music.load('music\\music_game1.wav')
+    pygame.mixer.music.play(-1)
+    MAX_WEAPONS = 10
     MAX_ARMOR = 5
     spawn_interval_weapon = 4000
     spawn_interval_armor = 3000
